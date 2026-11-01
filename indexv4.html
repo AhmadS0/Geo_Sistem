@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Peta & Pengurusan - Lili & Ahmad</title>
+    
+    <!-- 1. Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    
+    <!-- 2. Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        #map {
+            height: calc(100vh - 220px);
+            min-height: 480px;
+            border-radius: 12px;
+            z-index: 10;
+        }
+        /* Custom styling for Leaflet Popups in Dark Mode */
+        .leaflet-popup-content-wrapper {
+            background-color: #1e293b !important;
+            color: #f1f5f9 !important;
+            border-radius: 10px !important;
+            border: 1px solid #334155 !important;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5) !important;
+        }
+        .leaflet-popup-tip {
+            background-color: #1e293b !important;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans min-h-screen overflow-x-hidden">
+
+    <!-- ========================================== -->
+    <!-- 1. SKRIN LOG MASUK (LOGIN SCREEN)          -->
+    <!-- ========================================== -->
+    <div id="login-screen" class="min-h-screen flex items-center justify-center p-4 bg-slate-950">
+        <div class="bg-slate-800 border border-slate-700 p-8 rounded-2xl shadow-2xl w-full max-w-md">
+            <div class="text-center mb-6">
+                <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-3xl mb-3">
+                    🌐
+                </div>
+                <h1 class="text-2xl font-bold text-emerald-400">Sistem Peta Pintar</h1>
+                <p class="text-xs text-slate-400 mt-1">Projek Integrasi Sistem Lili & Ahmad (Versi Lokal)</p>
+            </div>
+
+            <form onsubmit="prosesLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">ID Pengguna</label>
+                    <input type="text" id="login-id" required placeholder="Masukkan ID (cth: Lili atau Ahmad)" 
+                           class="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Kata Laluan</label>
+                    <input type="password" id="login-pass" required placeholder="••••••••••" 
+                           class="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
+                </div>
+
+                <p id="login-ralat" class="text-xs text-red-400 hidden bg-red-500/10 border border-red-500/20 p-2.5 rounded-lg text-center"></p>
+
+                <button type="submit" class="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-lg shadow-lg transition duration-200">
+                    Log Masuk Sistem
+                </button>
+            </form>
+
+            <div class="mt-6 pt-4 border-t border-slate-700/60 text-xs text-slate-400 space-y-1">
+                <p class="font-semibold text-slate-300">💡 Maklumat Akses Lalai:</p>
+                <p>• Admin ID: <code class="text-emerald-400">Lili</code> atau <code class="text-emerald-400">Ahmad</code></p>
+                <p>• Password: <code class="text-emerald-400">0123456789</code></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 2. SKRIN UTAMA APLIKASI (DASHBOARD)        -->
+    <!-- ========================================== -->
+    <div id="app-screen" class="hidden min-h-screen flex flex-col md:flex-row">
+
+        <!-- BAR SISI KIRI (SIDEBAR) -->
+        <aside class="w-full md:w-64 bg-slate-800 border-r border-slate-700 flex flex-col justify-between shrink-0">
+            <div>
+                <div class="p-5 border-b border-slate-700 flex items-center gap-3">
+                    <span class="text-2xl">🛰️</span>
+                    <div>
+                        <h2 class="font-bold text-emerald-400 leading-tight">GeoSistem</h2>
+                        <span class="text-[11px] text-slate-400">Fasa 4: Penanda Lokasi</span>
+                    </div>
+                </div>
+
+                <div class="p-4 m-3 bg-slate-900/70 rounded-xl border border-slate-700/80">
+                    <p class="text-xs text-slate-400">Log masuk sebagai:</p>
+                    <div class="flex items-center justify-between mt-1">
+                        <span id="info-nama-user" class="font-bold text-sm text-white truncate">Ahmad</span>
+                        <span id="info-role-user" class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                            Admin
+                        </span>
+                    </div>
+                </div>
+
+                <nav class="px-3 space-y-1">
+                    <button onclick="bukaTab('map')" id="nav-map" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition bg-emerald-500 text-slate-950">
+                        <span>🗺️</span> Peta & Penanda
+                    </button>
+                    
+                    <button onclick="bukaTab('tetapan')" id="nav-tetapan" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition text-slate-300 hover:bg-slate-700/60">
+                        <span>⚙️</span> Tetapan
+                    </button>
+
+                    <button onclick="bukaTab('user')" id="nav-user" class="w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold transition text-slate-300 hover:bg-slate-700/60">
+                        <div class="flex items-center gap-3">
+                            <span>👥</span> Pengurusan User
+                        </div>
+                        <span class="text-[10px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded border border-amber-500/30">Admin</span>
+                    </button>
+                </nav>
+            </div>
+
+            <div class="p-4 border-t border-slate-700">
+                <button onclick="prosesLogout()" class="w-full py-2.5 px-4 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2">
+                    <span>🚪</span> Log Keluar
+                </button>
+            </div>
+        </aside>
+
+        <!-- KANDUNGAN UTAMA -->
+        <main class="flex-grow p-4 md:p-6 overflow-y-auto bg-slate-900">
+
+            <!-- ========================================== -->
+            <!-- TAB 1: PETA DENGAN SISTEM PENANDA LOKASI   -->
+            <!-- ========================================== -->
+            <section id="tab-map" class="space-y-4">
+                
+                <!-- Bar Kawalan Carian & Gaya Peta -->
+                <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex flex-col lg:flex-row gap-4 items-center justify-between">
+                    <div class="w-full lg:w-auto flex-grow max-w-xl">
+                        <form onsubmit="cariLokasi(event)" class="flex gap-2 w-full">
+                            <input type="text" id="input-carian" placeholder="Cari lokasi (cth: Langkawi, Melaka, Kundasang)..." 
+                                   class="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
+                            <button type="submit" class="px-5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm rounded-lg shadow transition shrink-0">
+                                🔍 Cari
+                            </button>
+                        </form>
+                        <p id="status-carian" class="text-xs text-emerald-400 mt-1.5 hidden"></p>
+                    </div>
+                    
+                    <div class="flex gap-2 w-full lg:w-auto justify-end shrink-0">
+                        <button onclick="tukarGaya('jalan')" id="btn-jalan" class="px-4 py-2 bg-emerald-500 text-slate-950 font-bold text-xs rounded-lg shadow transition">
+                            Peta Jalanan
+                        </button>
+                        <button onclick="tukarGaya('topografi')" id="btn-topografi" class="px-4 py-2 bg-slate-700 text-slate-300 font-bold text-xs rounded-lg hover:bg-slate-600 transition">
+                            Rupa Bumi (Terrain)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Petunjuk Mesra Pengguna -->
+                <div class="bg-emerald-950/40 border border-emerald-500/20 px-4 py-2.5 rounded-xl flex items-center justify-between text-xs text-emerald-300">
+                    <div class="flex items-center gap-2">
+                        <span>💡</span>
+                        <span><strong>Petua:</strong> Klik pada mana-mana bahagian di atas peta untuk menambah dan menyimpan penanda baharu!</span>
+                    </div>
+                    <span id="jumlah-penanda-badge" class="px-2.5 py-0.5 bg-emerald-500/20 rounded-full font-bold">0 Disimpan</span>
+                </div>
+
+                <!-- Kontena Grid: Peta di Kiri & Senarai Penanda di Kanan -->
+                <div class="grid grid-cols-1 xl:grid-cols-4 gap-4">
+                    
+                    <!-- Peta (Mengambil 3 lajur pada skrin lebar) -->
+                    <div class="xl:col-span-3 bg-slate-800 p-2 rounded-2xl border border-slate-700 shadow-lg relative">
+                        <div id="map"></div>
+                    </div>
+
+                    <!-- Panel Senarai Penanda Tersimpan (1 lajur) -->
+                    <div class="xl:col-span-1 bg-slate-800 border border-slate-700 rounded-2xl p-4 flex flex-col h-[480px] xl:h-auto shadow-lg">
+                        <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-700">
+                            <h3 class="font-bold text-sm text-white flex items-center gap-2">
+                                <span>📍</span> Penanda Disimpan
+                            </h3>
+                            <button onclick="padamSemuaMarker()" class="text-[11px] text-slate-400 hover:text-red-400 transition" title="Padam semua penanda">
+                                Kosongkan
+                            </button>
+                        </div>
+
+                        <!-- Ruang Senarai Boleh Skrol -->
+                        <div id="senarai-marker-ui" class="flex-grow overflow-y-auto space-y-2 pr-1">
+                            <!-- Diisi secara dinamik oleh JavaScript -->
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- ========================================== -->
+            <!-- TAB 2: TETAPAN (TUKAR PASSWORD)            -->
+            <!-- ========================================== -->
+            <section id="tab-tetapan" class="hidden max-w-xl mx-auto mt-4">
+                <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 shadow-xl">
+                    <h2 class="text-lg font-bold text-emerald-400 flex items-center gap-2 mb-1">
+                        <span>⚙️</span> Tetapan Akaun Pengguna
+                    </h2>
+                    <p class="text-xs text-slate-400 mb-6">Kemas kini kata laluan (password) untuk akaun anda.</p>
+
+                    <form onsubmit="tukarPasswordSendiri(event)" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 uppercase mb-1">ID Pengguna Semasa</label>
+                            <input type="text" id="tetapan-id" disabled 
+                                   class="w-full px-4 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-slate-400 text-sm cursor-not-allowed">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Kata Laluan Semasa</label>
+                            <input type="password" id="pass-lama" required placeholder="Masukkan kata laluan semasa"
+                                   class="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Kata Laluan Baharu</label>
+                            <input type="password" id="pass-baru" required placeholder="Masukkan kata laluan baharu"
+                                   class="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Sahkan Kata Laluan Baharu</label>
+                            <input type="password" id="pass-sahkan" required placeholder="Taip semula kata laluan baharu"
+                                   class="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
+                        </div>
+
+                        <div id="notifikasi-tetapan" class="hidden p-3 rounded-lg text-xs font-medium"></div>
+
+                        <button type="submit" class="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm rounded-lg shadow transition">
+                            Simpan Kata Laluan Baharu
+                        </button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- ========================================== -->
+            <!-- TAB 3: PENGURUSAN USER (KHAS ADMIN)        -->
+            <!-- ========================================== -->
+            <section id="tab-user" class="hidden space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    
+                    <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 shadow-xl h-fit">
+                        <h3 class="text-base font-bold text-emerald-400 flex items-center gap-2 mb-1">
+                            <span>➕</span> Daftar Pengguna Baharu
+                        </h3>
+                        <p class="text-xs text-slate-400 mb-5">Tambah pengguna dan tetapkan peranan (Role) mereka.</p>
+
+                        <form onsubmit="daftarUserBaharu(event)" class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">ID Pengguna Baharu</label>
+                                <input type="text" id="new-user-id" required placeholder="Cth: Kamal_Tech"
+                                       class="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Set Kata Laluan</label>
+                                <input type="password" id="new-user-pass" required placeholder="Tetapkan kata laluan awal"
+                                       class="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Pilih Peranan (Role)</label>
+                                <select id="new-user-role" class="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
+                                    <option value="Admin">Admin (Akses Penuh)</option>
+                                    <option value="Technician">Technician (Juruteknik)</option>
+                                    <option value="Operator" selected>Operator (Pengendali)</option>
+                                </select>
+                            </div>
+
+                            <div id="notifikasi-user" class="hidden p-3 rounded-lg text-xs font-medium"></div>
+
+                            <button type="submit" class="w-full py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm rounded-lg shadow transition">
+                                Daftar Pengguna
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="lg:col-span-2 bg-slate-800 border border-slate-700 rounded-2xl p-6 shadow-xl">
+                        <div class="flex justify-between items-center mb-4">
+                            <div>
+                                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                                    <span>📋</span> Senarai Pengguna Sistem
+                                </h3>
+                                <p class="text-xs text-slate-400">Pengurusan peranan akaun sistem.</p>
+                            </div>
+                            <button onclick="resetKeDefault()" class="text-xs text-slate-400 hover:text-red-400 underline">
+                                Reset Data Lalai
+                            </button>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="border-b border-slate-700 text-[11px] uppercase text-slate-400">
+                                        <th class="py-3 px-4">ID Pengguna</th>
+                                        <th class="py-3 px-4">Peranan (Role)</th>
+                                        <th class="py-3 px-4">Status</th>
+                                        <th class="py-3 px-4 text-right">Tindakan</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="jadual-senarai-user" class="divide-y divide-slate-700/60 text-sm">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- 3. Leaflet JavaScript -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" 
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <!-- ========================================== -->
+    <!-- 4. LOGIK SISTEM LENGKAP (JAVASCRIPT)       -->
+    <!-- ========================================== -->
+    <script>
+        // --- A. KUNCI LOCALSTORAGE ---
+        const KUNCI_STORAGE_USER = 'geosistem_users_db';
+        const KUNCI_STORAGE_MARKER = 'geosistem_markers_db';
+
+        const penggunaLalai = [
+            { id: 'Lili', pass: '0123456789', role: 'Admin', isDefault: true },
+            { id: 'Ahmad', pass: '0123456789', role: 'Admin', isDefault: true }
+        ];
+
+        function dapatkanSenaraiUser() {
+            const data = localStorage.getItem(KUNCI_STORAGE_USER);
+            if (!data) {
+                localStorage.setItem(KUNCI_STORAGE_USER, JSON.stringify(penggunaLalai));
+                return penggunaLalai;
+            }
+            return JSON.parse(data);
+        }
+
+        function simpanSenaraiUser(senarai) {
+            localStorage.setItem(KUNCI_STORAGE_USER, JSON.stringify(senarai));
+        }
+
+        // Dapatkan senarai marker dari LocalStorage
+        function dapatkanSenaraiMarker() {
+            const data = localStorage.getItem(KUNCI_STORAGE_MARKER);
+            return data ? JSON.parse(data) : [];
+        }
+
+        function simpanSenaraiMarker(senarai) {
+            localStorage.setItem(KUNCI_STORAGE_MARKER, JSON.stringify(senarai));
+            kemasKiniUIPenanda();
+        }
+
+        let penggunaSemasa = null;
+
+        // --- B. AUTHENTICATION (LOG MASUK & KELUAR) ---
+        function prosesLogin(event) {
+            event.preventDefault();
+            const inputId = document.getElementById('login-id').value.trim();
+            const inputPass = document.getElementById('login-pass').value;
+            const kotakRalat = document.getElementById('login-ralat');
+
+            const senaraiUser = dapatkanSenaraiUser();
+            const userDijumpai = senaraiUser.find(
+                u => u.id.toLowerCase() === inputId.toLowerCase() && u.pass === inputPass
+            );
+
+            if (userDijumpai) {
+                penggunaSemasa = userDijumpai;
+                kotakRalat.classList.add('hidden');
+                document.getElementById('login-id').value = '';
+                document.getElementById('login-pass').value = '';
+                masukKeAplikasi();
+            } else {
+                kotakRalat.textContent = "❌ ID Pengguna atau Kata Laluan tidak sah!";
+                kotakRalat.classList.remove('hidden');
+            }
+        }
+
+        function masukKeAplikasi() {
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('app-screen').classList.remove('hidden');
+
+            document.getElementById('info-nama-user').textContent = penggunaSemasa.id;
+            document.getElementById('info-role-user').textContent = penggunaSemasa.role;
+            document.getElementById('tetapan-id').value = `${penggunaSemasa.id} (${penggunaSemasa.role})`;
+
+            const butangTabUser = document.getElementById('nav-user');
+            if (penggunaSemasa.role === 'Admin') {
+                butangTabUser.classList.remove('hidden');
+                muatJadualUser();
+            } else {
+                butangTabUser.classList.add('hidden');
+            }
+
+            bukaTab('map');
+            initPeta();
+        }
+
+        function prosesLogout() {
+            penggunaSemasa = null;
+            document.getElementById('app-screen').classList.add('hidden');
+            document.getElementById('login-screen').classList.remove('hidden');
+        }
+
+        function bukaTab(namaTab) {
+            if (namaTab === 'user' && penggunaSemasa.role !== 'Admin') {
+                alert("Akses Ditolak: Hanya Admin dibenarkan.");
+                return;
+            }
+
+            document.getElementById('tab-map').classList.add('hidden');
+            document.getElementById('tab-tetapan').classList.add('hidden');
+            document.getElementById('tab-user').classList.add('hidden');
+
+            ['nav-map', 'nav-tetapan', 'nav-user'].forEach(id => {
+                document.getElementById(id).className = "w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold transition text-slate-300 hover:bg-slate-700/60";
+            });
+
+            document.getElementById(`tab-${namaTab}`).classList.remove('hidden');
+            document.getElementById(`nav-${namaTab}`).className = "w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold transition bg-emerald-500 text-slate-950 shadow";
+
+            if (namaTab === 'map' && map) {
+                setTimeout(() => map.invalidateSize(), 150);
+            }
+        }
+
+        // --- C. TETAPAN PASSWORD ---
+        function tukarPasswordSendiri(event) {
+            event.preventDefault();
+            const passLama = document.getElementById('pass-lama').value;
+            const passBaru = document.getElementById('pass-baru').value;
+            const passSahkan = document.getElementById('pass-sahkan').value;
+            const notifikasi = document.getElementById('notifikasi-tetapan');
+
+            if (passLama !== penggunaSemasa.pass) {
+                paparNotifikasi(notifikasi, "❌ Kata laluan semasa tidak tepat!", false);
+                return;
+            }
+            if (passBaru.length < 4) {
+                paparNotifikasi(notifikasi, "⚠️ Kata laluan mestilah sekurang-kurangnya 4 aksara.", false);
+                return;
+            }
+            if (passBaru !== passSahkan) {
+                paparNotifikasi(notifikasi, "❌ Pengesahan kata laluan baharu tidak sepadan!", false);
+                return;
+            }
+
+            const senaraiUser = dapatkanSenaraiUser();
+            const idx = senaraiUser.findIndex(u => u.id === penggunaSemasa.id);
+            if (idx !== -1) {
+                senaraiUser[idx].pass = passBaru;
+                simpanSenaraiUser(senaraiUser);
+                penggunaSemasa.pass = passBaru;
+                document.getElementById('pass-lama').value = '';
+                document.getElementById('pass-baru').value = '';
+                document.getElementById('pass-sahkan').value = '';
+                paparNotifikasi(notifikasi, "✅ Kata laluan anda berjaya dikemas kini!", true);
+            }
+        }
+
+        // --- D. PENGURUSAN USER ---
+        function daftarUserBaharu(event) {
+            event.preventDefault();
+            const idBaharu = document.getElementById('new-user-id').value.trim();
+            const passBaharu = document.getElementById('new-user-pass').value;
+            const roleBaharu = document.getElementById('new-user-role').value;
+            const notifikasi = document.getElementById('notifikasi-user');
+
+            const senaraiUser = dapatkanSenaraiUser();
+            if (senaraiUser.some(u => u.id.toLowerCase() === idBaharu.toLowerCase())) {
+                paparNotifikasi(notifikasi, `❌ ID Pengguna '${idBaharu}' sudah wujud!`, false);
+                return;
+            }
+
+            senaraiUser.push({ id: idBaharu, pass: passBaharu, role: roleBaharu, isDefault: false });
+            simpanSenaraiUser(senaraiUser);
+            muatJadualUser();
+
+            document.getElementById('new-user-id').value = '';
+            document.getElementById('new-user-pass').value = '';
+            paparNotifikasi(notifikasi, `✅ Pengguna '${idBaharu}' berjaya didaftarkan!`, true);
+        }
+
+        function muatJadualUser() {
+            const tbody = document.getElementById('jadual-senarai-user');
+            const senaraiUser = dapatkanSenaraiUser();
+            tbody.innerHTML = '';
+
+            senaraiUser.forEach((u, index) => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-700/30 transition";
+
+                let kolumRole = u.isDefault 
+                    ? `<span class="px-2.5 py-1 bg-emerald-500/20 text-emerald-300 text-xs font-bold rounded-full border border-emerald-500/30">Admin Utama</span>`
+                    : `<select onchange="kemaskiniRoleUser(${index}, this.value)" class="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1">
+                            <option value="Admin" ${u.role === 'Admin' ? 'selected' : ''}>Admin</option>
+                            <option value="Technician" ${u.role === 'Technician' ? 'selected' : ''}>Technician</option>
+                            <option value="Operator" ${u.role === 'Operator' ? 'selected' : ''}>Operator</option>
+                        </select>`;
+
+                let butangTindakan = u.isDefault 
+                    ? `<span class="text-xs text-slate-500 italic">Kekal</span>`
+                    : `<button onclick="padamUser(${index})" class="text-xs text-red-400 hover:text-red-300 font-semibold px-2 py-1 rounded bg-red-500/10 border border-red-500/20">Padam</button>`;
+
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-semibold text-white">${u.id}</td>
+                    <td class="py-3 px-4">${kolumRole}</td>
+                    <td class="py-3 px-4 text-xs text-slate-400">${u.isDefault ? 'Default Admin' : 'Pengguna Berdaftar'}</td>
+                    <td class="py-3 px-4 text-right">${butangTindakan}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function kemaskiniRoleUser(idx, roleBaru) {
+            const senarai = dapatkanSenaraiUser();
+            senarai[idx].role = roleBaru;
+            simpanSenaraiUser(senarai);
+        }
+
+        function padamUser(idx) {
+            const senarai = dapatkanSenaraiUser();
+            if (confirm(`Padam pengguna '${senarai[idx].id}'?`)) {
+                senarai.splice(idx, 1);
+                simpanSenaraiUser(senarai);
+                muatJadualUser();
+            }
+        }
+
+        function resetKeDefault() {
+            if (confirm("Reset semula semua pengguna kepada Lili & Ahmad sahaja?")) {
+                localStorage.setItem(KUNCI_STORAGE_USER, JSON.stringify(penggunaLalai));
+                muatJadualUser();
+            }
+        }
+
+        function paparNotifikasi(el, msg, ok) {
+            el.textContent = msg;
+            el.className = ok 
+                ? "p-3 rounded-lg text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 block"
+                : "p-3 rounded-lg text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20 block";
+            setTimeout(() => el.classList.add('hidden'), 4000);
+        }
+
+        // ========================================================
+        // --- E. FUNGSI PETA & SISTEM PENANDA LOKASI (MARKERS) ---
+        // ========================================================
+        let map = null;
+        let gayaJalanan = null;
+        let gayaTopografi = null;
+        let penandaCarian = null;
+        let kumpulanMarkerMap = []; // Memegang objek Leaflet Marker di skrin
+
+        function initPeta() {
+            if (map !== null) {
+                setTimeout(() => map.invalidateSize(), 150);
+                return;
+            }
+
+            const koordinatMula = [3.1390, 101.6869]; // Kuala Lumpur
+            map = L.map('map').setView(koordinatMula, 12);
+
+            gayaJalanan = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; OpenStreetMap'
+            });
+
+            gayaTopografi = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+                maxZoom: 17,
+                attribution: '&copy; OpenTopoMap'
+            });
+
+            gayaJalanan.addTo(map);
+
+            // 1. KLIK PADA PETA UNTUK SIMPAN MARKER BAHARU
+            map.on('click', function(e) {
+                bukaBorangSimpanMarker(e.latlng.lat, e.latlng.lng);
+            });
+
+            // 2. Lukis semua penanda yang tersimpan di storan
+            lukisSemuaMarkerDariStorage();
+        }
+
+        // Memaparkan popup borang apabila pengguna klik di peta
+        function bukaBorangSimpanMarker(lat, lng) {
+            const popupContent = `
+                <div class="p-1 min-w-[200px]">
+                    <h4 class="font-bold text-emerald-400 text-xs mb-1">📍 Simpan Penanda Lokasi</h4>
+                    <p class="text-[10px] text-slate-400 mb-2">Lat: ${lat.toFixed(4)}, Lon: ${lng.toFixed(4)}</p>
+                    
+                    <div class="space-y-2">
+                        <input type="text" id="popup-nama" placeholder="Nama Lokasi / Aset" 
+                               class="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded text-slate-100 text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none">
+                        
+                        <input type="text" id="popup-catatan" placeholder="Catatan (cth: Stesen Sensor)" 
+                               class="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded text-slate-100 text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none">
+                        
+                        <button onclick="laksanaSimpanMarker(${lat}, ${lng})" 
+                                class="w-full py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded transition shadow">
+                            💾 Simpan Penanda
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            L.popup()
+                .setLatLng([lat, lng])
+                .setContent(popupContent)
+                .openOn(map);
+        }
+
+        // Menyimpan data marker ke dalam LocalStorage
+        window.laksanaSimpanMarker = function(lat, lng) {
+            const nama = document.getElementById('popup-nama').value.trim();
+            const catatan = document.getElementById('popup-catatan').value.trim();
+
+            if (!nama) {
+                alert("Sila masukkan nama lokasi!");
+                return;
+            }
+
+            const senaraiMarker = dapatkanSenaraiMarker();
+            const markerBaru = {
+                id: 'm_' + Date.now(),
+                nama: nama,
+                catatan: catatan || 'Tiada catatan',
+                lat: lat,
+                lng: lng,
+                diciptaOleh: penggunaSemasa ? penggunaSemasa.id : 'Admin'
+            };
+
+            senaraiMarker.push(markerBaru);
+            simpanSenaraiMarker(senaraiMarker);
+            lukisSemuaMarkerDariStorage();
+            map.closePopup();
+        };
+
+        // Melukis semula semua penanda dari LocalStorage ke atas peta Leaflet
+        function lukisSemuaMarkerDariStorage() {
+            // Padam penanda sedia ada dari peta agar tidak berganda
+            kumpulanMarkerMap.forEach(m => map.removeLayer(m));
+            kumpulanMarkerMap = [];
+
+            const senaraiMarker = dapatkanSenaraiMarker();
+
+            senaraiMarker.forEach(m => {
+                const markerObj = L.marker([m.lat, m.lng]).addTo(map);
+
+                const infoPopup = `
+                    <div class="p-1 min-w-[190px]">
+                        <h4 class="font-bold text-emerald-400 text-sm">${m.nama}</h4>
+                        <p class="text-xs text-slate-300 mt-0.5">${m.catatan}</p>
+                        <div class="mt-2 pt-2 border-t border-slate-700 text-[10px] text-slate-400 flex justify-between items-center">
+                            <span>Oleh: <strong>${m.diciptaOleh}</strong></span>
+                            <button onclick="padamSatuMarker('${m.id}')" class="text-red-400 hover:text-red-300 font-semibold underline">Padam</button>
+                        </div>
+                    </div>
+                `;
+
+                markerObj.bindPopup(infoPopup);
+                markerObj._customId = m.id;
+                kumpulanMarkerMap.push(markerObj);
+            });
+
+            kemasKiniUIPenanda();
+        }
+
+        // Kemas kini paparan senarai di panel tepi kanan
+        function kemasKiniUIPenanda() {
+            const bekasUI = document.getElementById('senarai-marker-ui');
+            const badgeJumlah = document.getElementById('jumlah-penanda-badge');
+            const senaraiMarker = dapatkanSenaraiMarker();
+
+            badgeJumlah.textContent = `${senaraiMarker.length} Disimpan`;
+            bekasUI.innerHTML = '';
+
+            if (senaraiMarker.length === 0) {
+                bekasUI.innerHTML = `
+                    <div class="text-center py-10 px-2 text-slate-500 text-xs">
+                        <span class="text-2xl block mb-2">📌</span>
+                        Belum ada penanda.<br>Klik di peta untuk menambah!
+                    </div>
+                `;
+                return;
+            }
+
+            senaraiMarker.forEach(m => {
+                const kad = document.createElement('div');
+                kad.className = "bg-slate-900/80 hover:bg-slate-700/60 p-2.5 rounded-xl border border-slate-700/60 transition cursor-pointer flex justify-between items-start gap-2";
+                
+                kad.innerHTML = `
+                    <div class="flex-grow overflow-hidden" onclick="fokusKeMarker(${m.lat}, ${m.lng}, '${m.id}')">
+                        <p class="font-bold text-xs text-emerald-300 truncate">${m.nama}</p>
+                        <p class="text-[11px] text-slate-400 truncate">${m.catatan}</p>
+                        <span class="text-[9px] text-slate-500 font-mono">Lat: ${m.lat.toFixed(3)}, Lon: ${m.lng.toFixed(3)}</span>
+                    </div>
+                    <button onclick="padamSatuMarker('${m.id}')" class="text-slate-500 hover:text-red-400 text-xs p-1" title="Padam penanda">
+                        🗑️
+                    </button>
+                `;
+                bekasUI.appendChild(kad);
+            });
+        }
+
+        // Fungsi meluncur ke lokasi marker apabila ditekan dalam senarai
+        window.fokusKeMarker = function(lat, lng, markerId) {
+            map.flyTo([lat, lng], 14, { animate: true, duration: 1.2 });
+            const sasaran = kumpulanMarkerMap.find(m => m._customId === markerId);
+            if (sasaran) {
+                setTimeout(() => sasaran.openPopup(), 1200);
+            }
+        };
+
+        // Memadam satu penanda terpilih
+        window.padamSatuMarker = function(id) {
+            if (confirm("Padam penanda ini?")) {
+                let senarai = dapatkanSenaraiMarker();
+                senarai = senarai.filter(m => m.id !== id);
+                simpanSenaraiMarker(senarai);
+                lukisSemuaMarkerDariStorage();
+                map.closePopup();
+            }
+        };
+
+        // Memadam semua penanda serentak
+        function padamSemuaMarker() {
+            const senarai = dapatkanSenaraiMarker();
+            if (senarai.length === 0) return;
+
+            if (confirm("Adakah anda pasti mahu memadam SEMUA penanda lokasi yang tersimpan?")) {
+                localStorage.removeItem(KUNCI_STORAGE_MARKER);
+                lukisSemuaMarkerDariStorage();
+            }
+        }
+
+        // --- F. GAYA PETA & CARIAN LOKASI ---
+        function tukarGaya(jenis) {
+            const btnJalan = document.getElementById('btn-jalan');
+            const btnTopo = document.getElementById('btn-topografi');
+
+            if (jenis === 'jalan') {
+                map.removeLayer(gayaTopografi);
+                gayaJalanan.addTo(map);
+                btnJalan.className = "px-4 py-2 bg-emerald-500 text-slate-950 font-bold text-xs rounded-lg shadow transition";
+                btnTopo.className = "px-4 py-2 bg-slate-700 text-slate-300 font-bold text-xs rounded-lg hover:bg-slate-600 transition";
+            } else {
+                map.removeLayer(gayaJalanan);
+                gayaTopografi.addTo(map);
+                btnTopo.className = "px-4 py-2 bg-emerald-500 text-slate-950 font-bold text-xs rounded-lg shadow transition";
+                btnJalan.className = "px-4 py-2 bg-slate-700 text-slate-300 font-bold text-xs rounded-lg hover:bg-slate-600 transition";
+            }
+        }
+
+        async function cariLokasi(event) {
+            event.preventDefault();
+            const input = document.getElementById('input-carian').value;
+            const statusText = document.getElementById('status-carian');
+
+            if (!input.trim()) return;
+
+            statusText.textContent = "⏳ Sedang mencari koordinat...";
+            statusText.className = "text-xs text-emerald-400 mt-1.5 block";
+
+            try {
+                const urlAPI = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(input)}&format=json&limit=1`;
+                const respon = await fetch(urlAPI, { headers: { 'Accept-Language': 'ms,en' } });
+                const data = await respon.json();
+
+                if (data && data.length > 0) {
+                    const lat = parseFloat(data[0].lat);
+                    const lon = parseFloat(data[0].lon);
+
+                    if (penandaCarian) map.removeLayer(penandaCarian);
+                    penandaCarian = L.marker([lat, lon]).addTo(map);
+                    
+                    // Popup carian yang turut membenarkan pengguna terus simpan lokasi tersebut
+                    const popupCarian = `
+                        <div class="p-1">
+                            <h4 class="font-bold text-emerald-400 text-xs">Hasil Carian:</h4>
+                            <p class="text-[11px] text-slate-300 mb-2">${data[0].display_name}</p>
+                            <button onclick="bukaBorangSimpanMarker(${lat}, ${lon})" class="w-full py-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-[11px] rounded transition">
+                                📌 Simpan Titik Ini
+                            </button>
+                        </div>
+                    `;
+                    penandaCarian.bindPopup(popupCarian).openPopup();
+
+                    map.flyTo([lat, lon], 13, { animate: true, duration: 1.5 });
+                    statusText.textContent = `✅ Dijumpai: ${data[0].display_name}`;
+                } else {
+                    statusText.textContent = "❌ Lokasi tidak ditemui.";
+                    statusText.className = "text-xs text-red-400 mt-1.5 block";
+                }
+            } catch (ralat) {
+                statusText.textContent = "⚠️ Ralat sambungan API.";
+                statusText.className = "text-xs text-red-400 mt-1.5 block";
+            }
+        }
+    </script>
+</body>
+</html>

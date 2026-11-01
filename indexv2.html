@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Peta Lokal - Lili & Ahmad (Carian Aktif)</title>
+    
+    <!-- 1. Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    
+    <!-- 2. Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        #map {
+            height: 500px;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans min-h-screen flex flex-col justify-between">
+
+    <!-- Header / Navigasi -->
+    <header class="bg-slate-800 border-b border-slate-700 p-4 shadow-md">
+        <div class="max-w-6xl mx-auto flex justify-between items-center">
+            <div>
+                <h1 class="text-xl font-bold text-emerald-400">🌐 Peta Digital Lokal</h1>
+                <p class="text-xs text-slate-400">Pembangunan Bersama Ahmad & Lili</p>
+            </div>
+            <div class="flex gap-2">
+                <span class="px-3 py-1 bg-emerald-500/10 text-emerald-400 text-xs rounded-full font-medium border border-emerald-500/20">Fasa 2: Carian Aktif</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Kandungan Utama (Main Content) -->
+    <main class="max-w-6xl w-full mx-auto p-4 flex-grow flex flex-col gap-4">
+        
+        <!-- Panel Kawalan & Kotak Carian -->
+        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex flex-col md:flex-row gap-4 items-center justify-between">
+            
+            <!-- Bahagian Carian (Kiri) -->
+            <div class="w-full md:w-auto flex-grow max-w-lg">
+                <form id="borang-carian" onsubmit="cariLokasi(event)" class="flex gap-2 w-full">
+                    <input type="text" id="input-carian" placeholder="Cari lokasi (cth: Ipoh, Langkawi, Kuching)..." 
+                           class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
+                    <button type="submit" class="px-5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm rounded-lg shadow transition flex items-center gap-1">
+                        🔍 <span>Cari</span>
+                    </button>
+                </form>
+                <!-- Ruang mesej status carian -->
+                <p id="status-carian" class="text-xs text-emerald-400 mt-1 hidden"></p>
+            </div>
+            
+            <!-- Butang Penukar Gaya Peta (Kanan) -->
+            <div class="flex gap-2 w-full md:w-auto justify-end">
+                <button onclick="tukarGaya('jalan')" id="btn-jalan" class="px-4 py-2 bg-emerald-500 text-slate-950 font-bold text-sm rounded-lg shadow hover:bg-emerald-400 transition">
+                    Peta Jalanan
+                </button>
+                <button onclick="tukarGaya('topografi')" id="btn-topografi" class="px-4 py-2 bg-slate-700 text-slate-300 font-bold text-sm rounded-lg hover:bg-slate-600 transition">
+                    Rupa Bumi (Terrain)
+                </button>
+            </div>
+        </div>
+
+        <!-- Ruang Peta -->
+        <div class="relative">
+            <div id="map"></div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-800 border-t border-slate-700 text-center py-4 text-xs text-slate-500">
+        Pembangunan Bersama &copy; 2026 Ahmad & Lili. Dijana menggunakan Leaflet.js & Nominatim API.
+    </footer>
+
+    <!-- 3. Leaflet JavaScript -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" 
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <script>
+        // A. Set Koordinat Permulaan (Kuala Lumpur)
+        const koordinatMula = [3.1390, 101.6869];
+        const zoomAsal = 13;
+
+        // B. Mengaktifkan Peta
+        const map = L.map('map').setView(koordinatMula, zoomAsal);
+
+        // C. Mendefinisikan Lapisan Peta (Tile Layers)
+        const gayaJalanan = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        });
+
+        const gayaTopografi = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+            maxZoom: 17,
+            attribution: 'Peta: &copy; <a href="https://opentopomap.org">OpenTopoMap</a>'
+        });
+
+        // Aktifkan gaya jalanan sebagai lalai
+        gayaJalanan.addTo(map);
+
+        // Pembolehubah untuk memegang rujukan penanda aktif (Marker)
+        let penandaSemasa = L.marker(koordinatMula).addTo(map);
+        penandaSemasa.bindPopup("<b>Helo Ahmad!</b><br>Ini adalah pusat bandar Kuala Lumpur.").openPopup();
+
+        // D. Fungsi Tukar Gaya Peta
+        function tukarGaya(jenis) {
+            const btnJalan = document.getElementById('btn-jalan');
+            const btnTopo = document.getElementById('btn-topografi');
+
+            if (jenis === 'jalan') {
+                map.removeLayer(gayaTopografi);
+                gayaJalanan.addTo(map);
+                btnJalan.className = "px-4 py-2 bg-emerald-500 text-slate-950 font-bold text-sm rounded-lg shadow transition";
+                btnTopo.className = "px-4 py-2 bg-slate-700 text-slate-300 font-bold text-sm rounded-lg hover:bg-slate-600 transition";
+            } else if (jenis === 'topografi') {
+                map.removeLayer(gayaJalanan);
+                gayaTopografi.addTo(map);
+                btnTopo.className = "px-4 py-2 bg-emerald-500 text-slate-950 font-bold text-sm rounded-lg shadow transition";
+                btnJalan.className = "px-4 py-2 bg-slate-700 text-slate-300 font-bold text-sm rounded-lg hover:bg-slate-600 transition";
+            }
+        }
+
+        // E. FUNGSI UTAMA: Memanggil API Carian (Geocoding)
+        async function cariLokasi(event) {
+            event.preventDefault(); // Menghalang halaman daripada reload apabila borang dihantar
+
+            const input = document.getElementById('input-carian').value;
+            const statusText = document.getElementById('status-carian');
+
+            if (!input.trim()) return; // Abaikan jika input kosong
+
+            // Papar status carian sedang berjalan
+            statusText.textContent = "⏳ Sedang mencari lokasi...";
+            statusText.classList.remove('hidden', 'text-red-400');
+            statusText.classList.add('text-emerald-400');
+
+            try {
+                // 1. Membina URL permintaan API (Nominatim Geocoding API)
+                const urlAPI = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(input)}&format=json&limit=1`;
+
+                // 2. Menghantar permintaan HTTP GET menggunakan fungsi fetch()
+                const respon = await fetch(urlAPI, {
+                    headers: {
+                        'Accept-Language': 'ms,en' // Mengutamakan nama tempat dalam bahasa Melayu/Inggeris
+                    }
+                });
+                
+                // 3. Menukar respon pelayan ke format JSON
+                const data = await respon.json();
+
+                if (data && data.length > 0) {
+                    const keputusan = data[0];
+                    const lat = parseFloat(keputusan.lat);
+                    const lon = parseFloat(keputusan.lon);
+                    const namaTempat = keputusan.display_name;
+
+                    // 4. Padam penanda lama dan cipta penanda baharu di lokasi baharu
+                    if (penandaSemasa) {
+                        map.removeLayer(penandaSemasa);
+                    }
+                    
+                    penandaSemasa = L.marker([lat, lon]).addTo(map);
+                    penandaSemasa.bindPopup(`<b>Hasil Carian:</b><br>${namaTempat}`).openPopup();
+
+                    // 5. Meluncurkan peta ke lokasi baharu secara dinamik
+                    map.flyTo([lat, lon], 13, {
+                        animate: true,
+                        duration: 1.5 // Tempoh pergerakan kamera (1.5 saat)
+                    });
+
+                    statusText.textContent = `✅ Berjaya menemui: ${input}`;
+                } else {
+                    statusText.textContent = "❌ Lokasi tidak ditemui. Sila cuba kata kunci lain.";
+                    statusText.classList.replace('text-emerald-400', 'text-red-400');
+                }
+            } catch (ralat) {
+                console.error("Ralat semasa memanggil API:", ralat);
+                statusText.textContent = "⚠️ Ralat sistem sambungan API. Sila periksa internet anda.";
+                statusText.classList.replace('text-emerald-400', 'text-red-400');
+            }
+        }
+    </script>
+</body>
+</html>

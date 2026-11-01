@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Peta & Pengurusan - Lili & Ahmad</title>
+    
+    <!-- 1. Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    
+    <!-- 2. Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        #map {
+            height: calc(100vh - 190px);
+            min-height: 450px;
+            border-radius: 12px;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans min-h-screen overflow-x-hidden">
+
+    <!-- ========================================== -->
+    <!-- 1. SKRIN LOG MASUK (LOGIN SCREEN)          -->
+    <!-- ========================================== -->
+    <div id="login-screen" class="min-h-screen flex items-center justify-center p-4 bg-slate-950">
+        <div class="bg-slate-800 border border-slate-700 p-8 rounded-2xl shadow-2xl w-full max-w-md">
+            <div class="text-center mb-6">
+                <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-3xl mb-3">
+                    🌐
+                </div>
+                <h1 class="text-2xl font-bold text-emerald-400">Sistem Peta Pintar</h1>
+                <p class="text-xs text-slate-400 mt-1">Projek Integrasi Sistem Lili & Ahmad (Versi Lokal)</p>
+            </div>
+
+            <form onsubmit="prosesLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">ID Pengguna</label>
+                    <input type="text" id="login-id" required placeholder="Masukkan ID (cth: Lili atau Ahmad)" 
+                           class="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Kata Laluan (Password)</label>
+                    <input type="password" id="login-pass" required placeholder="••••••••••" 
+                           class="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
+                </div>
+
+                <p id="login-ralat" class="text-xs text-red-400 hidden bg-red-500/10 border border-red-500/20 p-2.5 rounded-lg text-center"></p>
+
+                <button type="submit" class="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-lg shadow-lg transition duration-200">
+                    Log Masuk Sistem
+                </button>
+            </form>
+
+            <div class="mt-6 pt-4 border-t border-slate-700/60 text-xs text-slate-400 space-y-1">
+                <p class="font-semibold text-slate-300">💡 Maklumat Akses Lalai (Default):</p>
+                <p>• Admin ID: <code class="text-emerald-400">Lili</code> atau <code class="text-emerald-400">Ahmad</code></p>
+                <p>• Password: <code class="text-emerald-400">0123456789</code></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 2. SKRIN UTAMA APLIKASI (DASHBOARD)        -->
+    <!-- ========================================== -->
+    <div id="app-screen" class="hidden min-h-screen flex flex-col md:flex-row">
+
+        <!-- BAR SISI KIRI (SIDEBAR) -->
+        <aside class="w-full md:w-64 bg-slate-800 border-r border-slate-700 flex flex-col justify-between shrink-0">
+            <div>
+                <!-- Logo & Tajuk -->
+                <div class="p-5 border-b border-slate-700 flex items-center gap-3">
+                    <span class="text-2xl">🛰️</span>
+                    <div>
+                        <h2 class="font-bold text-emerald-400 leading-tight">GeoSistem</h2>
+                        <span class="text-[11px] text-slate-400">Fasa 3: Kawalan Akses</span>
+                    </div>
+                </div>
+
+                <!-- Maklumat Pengguna Semasa -->
+                <div class="p-4 m-3 bg-slate-900/70 rounded-xl border border-slate-700/80">
+                    <p class="text-xs text-slate-400">Log masuk sebagai:</p>
+                    <div class="flex items-center justify-between mt-1">
+                        <span id="info-nama-user" class="font-bold text-sm text-white truncate">Ahmad</span>
+                        <span id="info-role-user" class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                            Admin
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Menu Navigasi Tab -->
+                <nav class="px-3 space-y-1">
+                    <button onclick="bukaTab('map')" id="nav-map" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition bg-emerald-500 text-slate-950">
+                        <span>🗺️</span> Peta (Map)
+                    </button>
+                    
+                    <button onclick="bukaTab('tetapan')" id="nav-tetapan" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition text-slate-300 hover:bg-slate-700/60">
+                        <span>⚙️</span> Tetapan
+                    </button>
+
+                    <!-- Tab User: Hanya dipaparkan untuk Admin -->
+                    <button onclick="bukaTab('user')" id="nav-user" class="w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold transition text-slate-300 hover:bg-slate-700/60">
+                        <div class="flex items-center gap-3">
+                            <span>👥</span> Pengurusan User
+                        </div>
+                        <span class="text-[10px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded border border-amber-500/30">Admin</span>
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Butang Log Keluar di Bawah Sidebar -->
+            <div class="p-4 border-t border-slate-700">
+                <button onclick="prosesLogout()" class="w-full py-2.5 px-4 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2">
+                    <span>🚪</span> Log Keluar
+                </button>
+            </div>
+        </aside>
+
+        <!-- KANDUNGAN UTAMA (MAIN CONTENT AREA) -->
+        <main class="flex-grow p-4 md:p-6 overflow-y-auto bg-slate-900">
+
+            <!-- ========================================== -->
+            <!-- TAB 1: PETA (MAP)                          -->
+            <!-- ========================================== -->
+            <section id="tab-map" class="space-y-4">
+                <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex flex-col lg:flex-row gap-4 items-center justify-between">
+                    <!-- Kotak Carian -->
+                    <div class="w-full lg:w-auto flex-grow max-w-xl">
+                        <form onsubmit="cariLokasi(event)" class="flex gap-2 w-full">
+                            <input type="text" id="input-carian" placeholder="Cari lokasi (cth: Cyberjaya, Gunung Kinabalu, Putrajaya)..." 
+                                   class="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
+                            <button type="submit" class="px-5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm rounded-lg shadow transition shrink-0">
+                                🔍 Cari
+                            </button>
+                        </form>
+                        <p id="status-carian" class="text-xs text-emerald-400 mt-1.5 hidden"></p>
+                    </div>
+                    
+                    <!-- Penukar Gaya Terrain -->
+                    <div class="flex gap-2 w-full lg:w-auto justify-end shrink-0">
+                        <button onclick="tukarGaya('jalan')" id="btn-jalan" class="px-4 py-2 bg-emerald-500 text-slate-950 font-bold text-xs rounded-lg shadow transition">
+                            Peta Jalanan
+                        </button>
+                        <button onclick="tukarGaya('topografi')" id="btn-topografi" class="px-4 py-2 bg-slate-700 text-slate-300 font-bold text-xs rounded-lg hover:bg-slate-600 transition">
+                            Rupa Bumi (Terrain)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Kontena Peta -->
+                <div class="bg-slate-800 p-2 rounded-2xl border border-slate-700 shadow-lg">
+                    <div id="map"></div>
+                </div>
+            </section>
+
+            <!-- ========================================== -->
+            <!-- TAB 2: TETAPAN (TUKAR PASSWORD)            -->
+            <!-- ========================================== -->
+            <section id="tab-tetapan" class="hidden max-w-xl mx-auto mt-4">
+                <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 shadow-xl">
+                    <h2 class="text-lg font-bold text-emerald-400 flex items-center gap-2 mb-1">
+                        <span>⚙️</span> Tetapan Akaun Pengguna
+                    </h2>
+                    <p class="text-xs text-slate-400 mb-6">Kemas kini kata laluan (password) untuk akaun anda.</p>
+
+                    <form onsubmit="tukarPasswordSendiri(event)" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 uppercase mb-1">ID Pengguna Semasa</label>
+                            <input type="text" id="tetapan-id" disabled 
+                                   class="w-full px-4 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-slate-400 text-sm cursor-not-allowed">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Kata Laluan Semasa</label>
+                            <input type="password" id="pass-lama" required placeholder="Masukkan kata laluan semasa"
+                                   class="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Kata Laluan Baharu</label>
+                            <input type="password" id="pass-baru" required placeholder="Masukkan kata laluan baharu"
+                                   class="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Sahkan Kata Laluan Baharu</label>
+                            <input type="password" id="pass-sahkan" required placeholder="Taip semula kata laluan baharu"
+                                   class="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
+                        </div>
+
+                        <div id="notifikasi-tetapan" class="hidden p-3 rounded-lg text-xs font-medium"></div>
+
+                        <button type="submit" class="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm rounded-lg shadow transition">
+                            Simpan Kata Laluan Baharu
+                        </button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- ========================================== -->
+            <!-- TAB 3: PENGURUSAN USER (KHAS ADMIN)        -->
+            <!-- ========================================== -->
+            <section id="tab-user" class="hidden space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    
+                    <!-- Borang Daftar Pengguna Baharu -->
+                    <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 shadow-xl h-fit">
+                        <h3 class="text-base font-bold text-emerald-400 flex items-center gap-2 mb-1">
+                            <span>➕</span> Daftar Pengguna Baharu
+                        </h3>
+                        <p class="text-xs text-slate-400 mb-5">Tambah pengguna dan tetapkan peranan (Role) mereka.</p>
+
+                        <form onsubmit="daftarUserBaharu(event)" class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">ID Pengguna Baharu</label>
+                                <input type="text" id="new-user-id" required placeholder="Cth: Rizal_Tech"
+                                       class="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Set Kata Laluan</label>
+                                <input type="password" id="new-user-pass" required placeholder="Tetapkan kata laluan awal"
+                                       class="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Pilih Peranan (Role)</label>
+                                <select id="new-user-role" class="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
+                                    <option value="Admin">Admin (Akses Penuh)</option>
+                                    <option value="Technician">Technician (Juruteknik)</option>
+                                    <option value="Operator" selected>Operator (Pengendali)</option>
+                                </select>
+                            </div>
+
+                            <div id="notifikasi-user" class="hidden p-3 rounded-lg text-xs font-medium"></div>
+
+                            <button type="submit" class="w-full py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm rounded-lg shadow transition">
+                                Daftar Pengguna
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Senarai Pengguna Berdaftar -->
+                    <div class="lg:col-span-2 bg-slate-800 border border-slate-700 rounded-2xl p-6 shadow-xl">
+                        <div class="flex justify-between items-center mb-4">
+                            <div>
+                                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                                    <span>📋</span> Senarai Pengguna Sistem
+                                </h3>
+                                <p class="text-xs text-slate-400">Admin boleh menukar peranan (Role) pengguna secara terus di bawah.</p>
+                            </div>
+                            <button onclick="resetKeDefault()" class="text-xs text-slate-400 hover:text-red-400 underline">
+                                Reset Data Lalai
+                            </button>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="border-b border-slate-700 text-[11px] uppercase text-slate-400">
+                                        <th class="py-3 px-4">ID Pengguna</th>
+                                        <th class="py-3 px-4">Peranan (Role)</th>
+                                        <th class="py-3 px-4">Status Akaun</th>
+                                        <th class="py-3 px-4 text-right">Tindakan</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="jadual-senarai-user" class="divide-y divide-slate-700/60 text-sm">
+                                    <!-- Diisi secara dinamik oleh JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- 3. Leaflet JavaScript -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" 
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <!-- ========================================== -->
+    <!-- 4. LOGIK SISTEM, AUTH & PETA (JAVASCRIPT)  -->
+    <!-- ========================================== -->
+    <script>
+        // --- A. PENGURUSAN PENGKALAN DATA LOKAL (LOCALSTORAGE) ---
+        const KUNCI_STORAGE = 'geosistem_users_db';
+
+        // Senarai Admin Lalai (Default Admin 1 & 2)
+        const penggunaLalai = [
+            { id: 'Lili', pass: '0123456789', role: 'Admin', isDefault: true },
+            { id: 'Ahmad', pass: '0123456789', role: 'Admin', isDefault: true }
+        ];
+
+        // Muat data pengguna dari LocalStorage atau guna data lalai jika belum wujud
+        function dapatkanSenaraiUser() {
+            const dataTersimpan = localStorage.getItem(KUNCI_STORAGE);
+            if (!dataTersimpan) {
+                localStorage.setItem(KUNCI_STORAGE, JSON.stringify(penggunaLalai));
+                return penggunaLalai;
+            }
+            return JSON.parse(dataTersimpan);
+        }
+
+        function simpanSenaraiUser(senarai) {
+            localStorage.setItem(KUNCI_STORAGE, JSON.stringify(senarai));
+        }
+
+        // Pembolehubah sesi pengguna yang sedang log masuk
+        let penggunaSemasa = null;
+
+        // --- B. SISTEM LOG MASUK & LOG KELUAR ---
+        function prosesLogin(event) {
+            event.preventDefault();
+            const inputId = document.getElementById('login-id').value.trim();
+            const inputPass = document.getElementById('login-pass').value;
+            const kotakRalat = document.getElementById('login-ralat');
+
+            const senaraiUser = dapatkanSenaraiUser();
+            
+            // Cari padanan ID (tidak kisah huruf besar/kecil untuk kemudahan, atau tepat)
+            const userDijumpai = senaraiUser.find(
+                u => u.id.toLowerCase() === inputId.toLowerCase() && u.pass === inputPass
+            );
+
+            if (userDijumpai) {
+                penggunaSemasa = userDijumpai;
+                kotakRalat.classList.add('hidden');
+                document.getElementById('login-id').value = '';
+                document.getElementById('login-pass').value = '';
+                masukKeAplikasi();
+            } else {
+                kotakRalat.textContent = "❌ ID Pengguna atau Kata Laluan tidak sah!";
+                kotakRalat.classList.remove('hidden');
+            }
+        }
+
+        function masukKeAplikasi() {
+            // Sembunyikan skrin login, paparkan skrin aplikasi
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('app-screen').classList.remove('hidden');
+
+            // Kemas kini maklumat di Sidebar
+            document.getElementById('info-nama-user').textContent = penggunaSemasa.id;
+            document.getElementById('info-role-user').textContent = penggunaSemasa.role;
+            document.getElementById('tetapan-id').value = `${penggunaSemasa.id} (${penggunaSemasa.role})`;
+
+            // KAWALAN AKSES BERASASKAN PERANAN (RBAC):
+            // Sembunyikan tab 'User' jika pengguna bukan Admin
+            const butangTabUser = document.getElementById('nav-user');
+            if (penggunaSemasa.role === 'Admin') {
+                butangTabUser.classList.remove('hidden');
+                muatJadualUser();
+            } else {
+                butangTabUser.classList.add('hidden');
+            }
+
+            // Buka tab Peta secara lalai setiap kali log masuk
+            bukaTab('map');
+            
+            // Inisialisasi peta jika belum dibuat, atau betulkan saiznya
+            initPeta();
+        }
+
+        function prosesLogout() {
+            penggunaSemasa = null;
+            document.getElementById('app-screen').classList.add('hidden');
+            document.getElementById('login-screen').classList.remove('hidden');
+        }
+
+        // --- C. NAVIGASI TAB SIDEBAR ---
+        function bukaTab(namaTab) {
+            // Sekatan keselamatan tambahan: Cegah bukan Admin daripada membuka tab user
+            if (namaTab === 'user' && penggunaSemasa.role !== 'Admin') {
+                alert("Akses Ditolak: Hanya Admin dibenarkan mengakses bahagian ini.");
+                return;
+            }
+
+            // Sembunyikan semua seksyen tab
+            document.getElementById('tab-map').classList.add('hidden');
+            document.getElementById('tab-tetapan').classList.add('hidden');
+            document.getElementById('tab-user').classList.add('hidden');
+
+            // Reset warna semua butang navigasi
+            const senaraiNav = ['nav-map', 'nav-tetapan', 'nav-user'];
+            senaraiNav.forEach(id => {
+                const btn = document.getElementById(id);
+                btn.className = "w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold transition text-slate-300 hover:bg-slate-700/60";
+            });
+
+            // Aktifkan tab yang dipilih
+            document.getElementById(`tab-${namaTab}`).classList.remove('hidden');
+            const btnAktif = document.getElementById(`nav-${namaTab}`);
+            btnAktif.className = "w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold transition bg-emerald-500 text-slate-950 shadow";
+
+            // Penting untuk Leaflet: Kemas kini saiz kontena peta apabila tab Map dibuka semula
+            if (namaTab === 'map' && map) {
+                setTimeout(() => {
+                    map.invalidateSize();
+                }, 100);
+            }
+        }
+
+        // --- D. TAB TETAPAN: TUKAR PASSWORD SENDIRI ---
+        function tukarPasswordSendiri(event) {
+            event.preventDefault();
+            const passLama = document.getElementById('pass-lama').value;
+            const passBaru = document.getElementById('pass-baru').value;
+            const passSahkan = document.getElementById('pass-sahkan').value;
+            const notifikasi = document.getElementById('notifikasi-tetapan');
+
+            if (passLama !== penggunaSemasa.pass) {
+                paparNotifikasi(notifikasi, "❌ Kata laluan semasa tidak tepat!", false);
+                return;
+            }
+
+            if (passBaru.length < 4) {
+                paparNotifikasi(notifikasi, "⚠️ Kata laluan baharu mestilah sekurang-kurangnya 4 aksara.", false);
+                return;
+            }
+
+            if (passBaru !== passSahkan) {
+                paparNotifikasi(notifikasi, "❌ Pengesahan kata laluan baharu tidak sepadan!", false);
+                return;
+            }
+
+            // Kemas kini di dalam LocalStorage
+            const senaraiUser = dapatkanSenaraiUser();
+            const indeks = senaraiUser.findIndex(u => u.id === penggunaSemasa.id);
+            if (indeks !== -1) {
+                senaraiUser[indeks].pass = passBaru;
+                simpanSenaraiUser(senaraiUser);
+                penggunaSemasa.pass = passBaru; // Kemas kini sesi semasa
+
+                // Kosongkan borang
+                document.getElementById('pass-lama').value = '';
+                document.getElementById('pass-baru').value = '';
+                document.getElementById('pass-sahkan').value = '';
+
+                paparNotifikasi(notifikasi, "✅ Kata laluan anda berjaya dikemas kini!", true);
+            }
+        }
+
+        // --- E. TAB PENGURUSAN USER (KHAS ADMIN) ---
+        function daftarUserBaharu(event) {
+            event.preventDefault();
+            if (penggunaSemasa.role !== 'Admin') return;
+
+            const idBaharu = document.getElementById('new-user-id').value.trim();
+            const passBaharu = document.getElementById('new-user-pass').value;
+            const roleBaharu = document.getElementById('new-user-role').value;
+            const notifikasi = document.getElementById('notifikasi-user');
+
+            const senaraiUser = dapatkanSenaraiUser();
+
+            // Semak jika ID telah wujud
+            const sudahWujud = senaraiUser.some(u => u.id.toLowerCase() === idBaharu.toLowerCase());
+            if (sudahWujud) {
+                paparNotifikasi(notifikasi, `❌ ID Pengguna '${idBaharu}' sudah wujud! Sila pilih ID lain.`, false);
+                return;
+            }
+
+            // Tambah user baharu
+            senaraiUser.push({
+                id: idBaharu,
+                pass: passBaharu,
+                role: roleBaharu,
+                isDefault: false
+            });
+
+            simpanSenaraiUser(senaraiUser);
+            muatJadualUser();
+
+            // Reset borang
+            document.getElementById('new-user-id').value = '';
+            document.getElementById('new-user-pass').value = '';
+            paparNotifikasi(notifikasi, `✅ Pengguna '${idBaharu}' (${roleBaharu}) berjaya didaftarkan!`, true);
+        }
+
+        function muatJadualUser() {
+            const tbody = document.getElementById('jadual-senarai-user');
+            const senaraiUser = dapatkanSenaraiUser();
+            tbody.innerHTML = '';
+
+            senaraiUser.forEach((u, index) => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-700/30 transition";
+
+                // Pilihan dropdown untuk menukar Role secara terus (kecuali Default Admin Lili & Ahmad)
+                let kolumRole = '';
+                if (u.isDefault) {
+                    kolumRole = `<span class="px-2.5 py-1 bg-emerald-500/20 text-emerald-300 text-xs font-bold rounded-full border border-emerald-500/30">Admin Utama</span>`;
+                } else {
+                    kolumRole = `
+                        <select onchange="kemaskiniRoleUser(${index}, this.value)" class="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                            <option value="Admin" ${u.role === 'Admin' ? 'selected' : ''}>Admin</option>
+                            <option value="Technician" ${u.role === 'Technician' ? 'selected' : ''}>Technician</option>
+                            <option value="Operator" ${u.role === 'Operator' ? 'selected' : ''}>Operator</option>
+                        </select>
+                    `;
+                }
+
+                // Butang padam (Default Admin tidak boleh dipadam)
+                let butangTindakan = u.isDefault 
+                    ? `<span class="text-xs text-slate-500 italic">Dilindungi</span>`
+                    : `<button onclick="padamUser(${index})" class="text-xs text-red-400 hover:text-red-300 font-semibold px-2 py-1 rounded bg-red-500/10 border border-red-500/20">Padam</button>`;
+
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-semibold text-white">${u.id}</td>
+                    <td class="py-3 px-4">${kolumRole}</td>
+                    <td class="py-3 px-4 text-xs text-slate-400">${u.isDefault ? 'Default Admin' : 'Pengguna Berdaftar'}</td>
+                    <td class="py-3 px-4 text-right">${butangTindakan}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function kemaskiniRoleUser(indeks, roleBaru) {
+            const senaraiUser = dapatkanSenaraiUser();
+            senaraiUser[indeks].role = roleBaru;
+            simpanSenaraiUser(senaraiUser);
+        }
+
+        function padamUser(indeks) {
+            const senaraiUser = dapatkanSenaraiUser();
+            const sasaran = senaraiUser[indeks];
+            if (sasaran.isDefault) return;
+
+            if (confirm(`Adakah anda pasti mahu memadam pengguna '${sasaran.id}'?`)) {
+                senaraiUser.splice(indeks, 1);
+                simpanSenaraiUser(senaraiUser);
+                muatJadualUser();
+            }
+        }
+
+        function resetKeDefault() {
+            if (confirm("Reset semua pengguna kembali kepada tetapan asal (Lili & Ahmad sahaja)?")) {
+                localStorage.setItem(KUNCI_STORAGE, JSON.stringify(penggunaLalai));
+                muatJadualUser();
+            }
+        }
+
+        function paparNotifikasi(elemen, mesej, berjaya) {
+            elemen.textContent = mesej;
+            elemen.className = berjaya 
+                ? "p-3 rounded-lg text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 block"
+                : "p-3 rounded-lg text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20 block";
+            setTimeout(() => { elemen.classList.add('hidden'); }, 4000);
+        }
+
+        // --- F. FUNGSI PETA & API CARIAN (LEAFLET.JS) ---
+        let map = null;
+        let gayaJalanan = null;
+        let gayaTopografi = null;
+        let penandaSemasa = null;
+
+        function initPeta() {
+            if (map !== null) {
+                setTimeout(() => map.invalidateSize(), 150);
+                return;
+            }
+
+            const koordinatMula = [3.1390, 101.6869]; // Kuala Lumpur
+            map = L.map('map').setView(koordinatMula, 13);
+
+            gayaJalanan = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; OpenStreetMap'
+            });
+
+            gayaTopografi = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+                maxZoom: 17,
+                attribution: '&copy; OpenTopoMap'
+            });
+
+            gayaJalanan.addTo(map);
+
+            penandaSemasa = L.marker(koordinatMula).addTo(map);
+            penandaSemasa.bindPopup(`<b>Selamat Datang, ${penggunaSemasa.id}!</b><br>Pusat Bandaraya Kuala Lumpur.`).openPopup();
+        }
+
+        function tukarGaya(jenis) {
+            const btnJalan = document.getElementById('btn-jalan');
+            const btnTopo = document.getElementById('btn-topografi');
+
+            if (jenis === 'jalan') {
+                map.removeLayer(gayaTopografi);
+                gayaJalanan.addTo(map);
+                btnJalan.className = "px-4 py-2 bg-emerald-500 text-slate-950 font-bold text-xs rounded-lg shadow transition";
+                btnTopo.className = "px-4 py-2 bg-slate-700 text-slate-300 font-bold text-xs rounded-lg hover:bg-slate-600 transition";
+            } else {
+                map.removeLayer(gayaJalanan);
+                gayaTopografi.addTo(map);
+                btnTopo.className = "px-4 py-2 bg-emerald-500 text-slate-950 font-bold text-xs rounded-lg shadow transition";
+                btnJalan.className = "px-4 py-2 bg-slate-700 text-slate-300 font-bold text-xs rounded-lg hover:bg-slate-600 transition";
+            }
+        }
+
+        async function cariLokasi(event) {
+            event.preventDefault();
+            const input = document.getElementById('input-carian').value;
+            const statusText = document.getElementById('status-carian');
+
+            if (!input.trim()) return;
+
+            statusText.textContent = "⏳ Sedang mencari koordinat...";
+            statusText.className = "text-xs text-emerald-400 mt-1.5 block";
+
+            try {
+                const urlAPI = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(input)}&format=json&limit=1`;
+                const respon = await fetch(urlAPI, { headers: { 'Accept-Language': 'ms,en' } });
+                const data = await respon.json();
+
+                if (data && data.length > 0) {
+                    const lat = parseFloat(data[0].lat);
+                    const lon = parseFloat(data[0].lon);
+
+                    if (penandaSemasa) map.removeLayer(penandaSemasa);
+                    penandaSemasa = L.marker([lat, lon]).addTo(map);
+                    penandaSemasa.bindPopup(`<b>Lokasi:</b><br>${data[0].display_name}`).openPopup();
+
+                    map.flyTo([lat, lon], 13, { animate: true, duration: 1.5 });
+                    statusText.textContent = `✅ Dijumpai: ${data[0].display_name}`;
+                } else {
+                    statusText.textContent = "❌ Lokasi tidak ditemui.";
+                    statusText.className = "text-xs text-red-400 mt-1.5 block";
+                }
+            } catch (ralat) {
+                statusText.textContent = "⚠️ Ralat sambungan API.";
+                statusText.className = "text-xs text-red-400 mt-1.5 block";
+            }
+        }
+    </script>
+</body>
+</html>
