@@ -1062,48 +1062,75 @@
 
         // --- E. PENGURUSAN PENGGUNA (ADMIN - HIBRID CLOUD & LOKAL) ---
         async function daftarUserBaharu(event) {
-            event.preventDefault();
-            const idBaharu = document.getElementById('new-user-id').value.trim();
-            const passBaharu = document.getElementById('new-user-pass').value;
-            const roleBaharu = document.getElementById('new-user-role').value;
-            const notifikasi = document.getElementById('notifikasi-user');
+    event.preventDefault();
+    const idBaharu = document.getElementById('new-user-id').value.trim();
+    const passBaharu = document.getElementById('new-user-pass').value;
+    const roleBaharu = document.getElementById('new-user-role').value;
+    const notifikasi = document.getElementById('notifikasi-user');
+    const btnSubmit = event.target.querySelector('button[type="submit"]');
 
-            if (passBaharu.length < 6) {
-                paparNotifikasi(notifikasi, "⚠️ Kata laluan mesti sekurang-kurangnya 6 aksara.", false);
-                return;
+    if (passBaharu.length < 6) {
+        paparNotifikasi(notifikasi, "⚠️ Kata laluan mesti sekurang-kurangnya 6 aksara.", false);
+        return;
+    }
+
+    // Paparkan status sedang memproses
+    btnSubmit.disabled = true;
+    btnSubmit.textContent = "⏳ Sedang Mendaftar ke Awan...";
+
+    // 1. JIKA MOD FIREBASE AKTIF
+    if (modFirebaseAktif) {
+        const secondaryApp = firebase.initializeApp(firebaseConfig, "SecondaryApp_" + Date.now());
+        try {
+            const emelBaharu = formatKeEmel(idBaharu);
+            const kredensial = await secondaryApp.auth().createUserWithEmailAndPassword(emelBaharu, passBaharu);
+            
+            // Simpan peranan (Role) ke dalam Realtime Database
+            await rujukanPeranan.child(kredensial.user.uid).set({
+                id: idBaharu,
+                email: emelBaharu,
+                role: roleBaharu
+            });
+
+            await secondaryApp.auth().signOut();
+            document.getElementById('new-user-id').value = '';
+            document.getElementById('new-user-pass').value = '';
+            paparNotifikasi(notifikasi, `✅ Pengguna '${idBaharu}' (${roleBaharu}) berjaya didaftarkan ke awan!`, true);
+        } catch (ralat) {
+            console.error("Ralat pendaftaran:", ralat);
+            let mesej = ralat.message;
+            if (ralat.code === 'auth/email-already-in-use') {
+                mesej = `ID '${idBaharu}' sudah pernah didaftarkan di Firebase!`;
             }
+            paparNotifikasi(notifikasi, "❌ " + mesej, false);
+        } finally {
+            btnSubmit.disabled = false;
+            btnSubmit.textContent = "Daftar Pengguna";
+            secondaryApp.delete();
+        }
+        return;
+    }
 
-            // 1. JIKA MOD FIREBASE AKTIF: Guna Secondary App supaya sesi Admin tidak terkeluar!
-            if (modFirebaseAktif) {
-                const secondaryApp = firebase.initializeApp(firebaseConfig, "SecondaryApp_" + Date.now());
-                try {
-                    const emelBaharu = formatKeEmel(idBaharu);
-                    const kredensial = await secondaryApp.auth().createUserWithEmailAndPassword(emelBaharu, passBaharu);
-                    
-                    await rujukanPeranan.child(kredensial.user.uid).set({
-                        id: idBaharu,
-                        email: emelBaharu,
-                        role: roleBaharu
-                    });
+    // 2. JIKA MOD LOKAL
+    const senaraiUser = dapatkanSenaraiUser();
+    if (senaraiUser.some(u => u.id.toLowerCase() === idBaharu.toLowerCase())) {
+        paparNotifikasi(notifikasi, `❌ ID '${idBaharu}' sudah wujud!`, false);
+        btnSubmit.disabled = false;
+        btnSubmit.textContent = "Daftar Pengguna";
+        return;
+    }
 
-                    await secondaryApp.auth().signOut();
-                    document.getElementById('new-user-id').value = '';
-                    document.getElementById('new-user-pass').value = '';
-                    paparNotifikasi(notifikasi, `✅ Akaun awan '${idBaharu}' (${roleBaharu}) berjaya dicipta!`, true);
-                } catch (ralat) {
-                    paparNotifikasi(notifikasi, "❌ Ralat Firebase: " + ralat.message, false);
-                } finally {
-                    secondaryApp.delete();
-                }
-                return;
-            }
+    senaraiUser.push({ id: idBaharu, pass: passBaharu, role: roleBaharu, isDefault: false });
+    simpanSenaraiUser(senaraiUser);
+    muatJadualUser();
 
-            // 2. JIKA MOD LOKAL
-            const senaraiUser = dapatkanSenaraiUser();
-            if (senaraiUser.some(u => u.id.toLowerCase() === idBaharu.toLowerCase())) {
-                paparNotifikasi(notifikasi, `❌ ID '${idBaharu}' sudah wujud!`, false);
-                return;
-            }
+    document.getElementById('new-user-id').value = '';
+    document.getElementById('new-user-pass').value = '';
+    btnSubmit.disabled = false;
+    btnSubmit.textContent = "Daftar Pengguna";
+    paparNotifikasi(notifikasi, `✅ Pengguna '${idBaharu}' berjaya didaftarkan secara lokal!`, true);
+}
+
 
             senaraiUser.push({ id: idBaharu, pass: passBaharu, role: roleBaharu, isDefault: false });
             simpanSenaraiUser(senaraiUser);
