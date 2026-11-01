@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GeoSistem Pintar - Lili & Ahmad (Versi Lengkap)</title>
+    <title>GeoSistem Pintar v8.0 - Lili & Ahmad (Cloud & Lokal)</title>
     
     <!-- 1. Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
@@ -19,7 +19,6 @@
             border-radius: 12px;
             z-index: 10;
         }
-        /* Gaya Popup Leaflet dalam Mod Gelap */
         .leaflet-popup-content-wrapper {
             background-color: #1e293b !important;
             color: #f1f5f9 !important;
@@ -54,7 +53,14 @@
                     🌐
                 </div>
                 <h1 class="text-2xl font-bold text-emerald-400" data-i18n="login-title">Sistem Peta Pintar</h1>
-                <p class="text-xs text-slate-400 mt-1" data-i18n="login-subtitle">Projek Integrasi Sistem Lili & Ahmad (Versi Lokal)</p>
+                <p class="text-xs text-slate-400 mt-1" data-i18n="login-subtitle">Projek Integrasi Sistem Lili & Ahmad (v8.0 Cloud-Ready)</p>
+                
+                <!-- Lencana Status Pangkalan Data -->
+                <div class="mt-3">
+                    <span id="badge-status-db-login" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-amber-500/10 text-amber-300 border border-amber-500/30">
+                        💾 Mod Storan Lokal (localStorage)
+                    </span>
+                </div>
             </div>
 
             <form onsubmit="prosesLogin(event)" class="space-y-4">
@@ -71,7 +77,7 @@
 
                 <p id="login-ralat" class="text-xs text-red-400 hidden bg-red-500/10 border border-red-500/20 p-2.5 rounded-lg text-center"></p>
 
-                <button type="submit" class="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-lg shadow-lg transition duration-200" data-i18n="btn-login">
+                <button type="submit" id="btn-submit-login" class="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-lg shadow-lg transition duration-200" data-i18n="btn-login">
                     Log Masuk Sistem
                 </button>
             </form>
@@ -96,7 +102,7 @@
                     <span class="text-2xl">🛰️</span>
                     <div>
                         <h2 class="font-bold text-emerald-400 leading-tight">GeoSistem</h2>
-                        <span class="text-[11px] text-slate-400" data-i18n="sidebar-sub">Versi 7.0: Lengkap</span>
+                        <span id="sidebar-db-mode" class="text-[10px] font-semibold text-amber-400 block">💾 Mod Lokal</span>
                     </div>
                 </div>
 
@@ -146,7 +152,6 @@
                 <!-- Bar Kawalan Carian, GPS & Gaya Peta -->
                 <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex flex-col xl:flex-row gap-3 items-center justify-between">
                     
-                    <!-- Kiri: Borang Carian & Kawalan GPS -->
                     <div class="w-full xl:w-auto flex-grow flex flex-col sm:flex-row gap-2 max-w-2xl">
                         <form onsubmit="cariLokasi(event)" class="flex gap-2 flex-grow">
                             <input type="text" id="input-carian" placeholder="Cari lokasi (cth: Langkawi, Melaka)..." 
@@ -156,7 +161,7 @@
                             </button>
                         </form>
 
-                        <!-- Kawalan GPS (Satu Kali, Live Tracking & Padam) -->
+                        <!-- Kawalan GPS -->
                         <div class="flex gap-1.5 shrink-0">
                             <button type="button" onclick="jejakiLokasiSaya()" class="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-emerald-400 border border-slate-600 rounded-lg shadow transition flex items-center gap-1 text-xs font-bold" title="Cari Lokasi Semasa">
                                 🎯 <span data-i18n="btn-gps">Lokasi Saya</span>
@@ -173,7 +178,7 @@
                         </div>
                     </div>
                     
-                    <!-- Kanan: Penukar Gaya Terrain -->
+                    <!-- Penukar Gaya Terrain -->
                     <div class="flex gap-2 w-full xl:w-auto justify-end shrink-0">
                         <button onclick="tukarGaya('jalan')" id="btn-jalan" class="px-3.5 py-2 bg-emerald-500 text-slate-950 font-bold text-xs rounded-lg shadow transition" data-i18n="btn-street-map">
                             Peta Utama (API)
@@ -194,7 +199,7 @@
                         <span data-i18n="tip-map"><strong>Petua:</strong> Klik pada peta untuk tambah penanda baru. Anda boleh mengeksport atau mengimport kembali fail GeoJSON!</span>
                     </div>
                     <div class="flex items-center gap-2">
-                        <span id="badge-pembekal-aktif" class="px-2.5 py-0.5 bg-slate-800 text-slate-300 border border-slate-700 rounded-full text-[10px]">Pembekal: OSM</span>
+                        <span id="badge-pembekal-aktif" class="px-2.5 py-0.5 bg-slate-800 text-slate-300 border border-slate-700 rounded-full text-[10px]">API: OSM</span>
                         <span id="jumlah-penanda-badge" class="px-2.5 py-0.5 bg-emerald-500/20 rounded-full font-bold">0 Disimpan</span>
                     </div>
                 </div>
@@ -264,13 +269,13 @@
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                             <div>
                                 <label class="block text-xs font-semibold text-slate-300 uppercase mb-1" data-i18n="lbl-current-pass">Kata Laluan Semasa</label>
-                                <input type="password" id="pass-lama" required placeholder="••••••••"
+                                <input type="password" id="pass-lama" placeholder="••••••••"
                                        class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
                             </div>
 
                             <div>
                                 <label class="block text-xs font-semibold text-slate-300 uppercase mb-1" data-i18n="lbl-new-pass">Kata Laluan Baharu</label>
-                                <input type="password" id="pass-baru" required placeholder="••••••••"
+                                <input type="password" id="pass-baru" required placeholder="Min 6 aksara"
                                        class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
                             </div>
 
@@ -303,7 +308,6 @@
                         </span>
                     </div>
 
-                    <!-- Pilihan Pratetap Pantas (Termasuk Mapbox!) -->
                     <div class="mb-4">
                         <label class="block text-xs font-semibold text-slate-300 uppercase mb-1" data-i18n="lbl-preset">Templat Pratetap (Presets Pantas)</label>
                         <select id="pilihan-preset-map" onchange="pilihPresetMap(this.value)" class="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-emerald-300 font-semibold text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none">
@@ -337,7 +341,6 @@
                             <label class="block text-xs font-semibold text-slate-300 uppercase mb-1" data-i18n="lbl-tile-url">URL Templat Jubin Peta (Tile URL Template)</label>
                             <input type="text" id="api-tile-url" required placeholder="https://api.mapbox.com/styles/v1/mapbox/dark-v11/tiles/{z}/{x}/{y}?access_token={apiKey}" 
                                    class="w-full px-3.5 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 text-xs font-mono focus:ring-2 focus:ring-emerald-500 focus:outline-none">
-                            <p class="text-[10px] text-slate-400 mt-1">Gunakan <code>{z}</code>, <code>{x}</code>, <code>{y}</code> dan <code>{apiKey}</code> untuk suntikan token automatik.</p>
                         </div>
 
                         <div>
@@ -381,7 +384,7 @@
                             </div>
 
                             <div>
-                                <label class="block text-xs font-semibold text-slate-300 uppercase mb-1" data-i18n="lbl-set-pass">Set Kata Laluan</label>
+                                <label class="block text-xs font-semibold text-slate-300 uppercase mb-1" data-i18n="lbl-set-pass">Set Kata Laluan (Min 6 Aksara)</label>
                                 <input type="password" id="new-user-pass" required placeholder="••••••••"
                                        class="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm">
                             </div>
@@ -442,20 +445,141 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" 
             integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
+    <!-- 4. Firebase SDK (App, Auth & Realtime Database - Versi Compat) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+
     <!-- ========================================== -->
-    <!-- 4. LOGIK SISTEM INDUK (JAVASCRIPT)         -->
+    <!-- 5. LOGIK SISTEM INDUK (JAVASCRIPT v8.0)    -->
     <!-- ========================================== -->
     <script>
+        // =========================================================
+        // 🔥 KONFIGURASI FIREBASE (TAMPAL CONFIG SEBENAR ANDA DI SINI)
+        // Nota: Selagi apiKey tertulis "GANTIKAN_...", sistem akan 
+        // berjalan dalam Mod Lokal (localStorage) secara automatik!
+        // =========================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyALjSmK7kQNAtv5RH0wWdXRBBM_3aXkjVk",
+            authDomain: "geosistem-f6331.firebaseapp.com",
+            projectId: "geosistem-f6331",
+            storageBucket: "geosistem-f6331.firebasestorage.app",
+            messagingSenderId: "660819533144",
+            appId: "1:660819533144:web:c0f8807e0aba9bc9d2192d"
+        };
+
+        // Semak sama ada pengguna sudah memasukkan kunci Firebase sebenar
+        const modFirebaseAktif = firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith("GANTIKAN_");
+
+        let auth = null;
+        let db = null;
+        let rujukanPenanda = null;
+        let rujukanPeranan = null;
+        let senaraiMarkerAwan = [];
+        let senaraiUserAwan = {};
+
+        // Helper: Tukar ID biasa (cth: "Ahmad") kepada e-mel maya ("ahmad@geosistem.local")
+        function formatKeEmel(idPengguna) {
+            const bersih = idPengguna.trim().toLowerCase();
+            return bersih.includes('@') ? bersih : `${bersih}@geosistem.local`;
+        }
+
+        // Inisialisasi Mod Firebase jika Config Sah
+        if (modFirebaseAktif) {
+            try {
+                firebase.initializeApp(firebaseConfig);
+                auth = firebase.auth();
+                db = firebase.database();
+                rujukanPenanda = db.ref('geosistem_markers');
+                rujukanPeranan = db.ref('geosistem_roles');
+
+                // Kemas kini Lencana UI kepada Mod Cloud
+                const badgeLogin = document.getElementById('badge-status-db-login');
+                const badgeSidebar = document.getElementById('sidebar-db-mode');
+                if (badgeLogin) {
+                    badgeLogin.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-500/30";
+                    badgeLogin.textContent = "☁️ Firebase Cloud Sync Aktif";
+                }
+                if (badgeSidebar) {
+                    badgeSidebar.className = "text-[10px] font-semibold text-emerald-400 block";
+                    badgeSidebar.textContent = "☁️ Cloud Sync Aktif";
+                }
+
+                // Pantau Status Log Masuk Firebase Secara Automatik
+                auth.onAuthStateChanged(async (userFirebase) => {
+                    if (userFirebase) {
+                        const namaAsal = userFirebase.email.split('@')[0];
+                        const idPaparan = namaAsal.charAt(0).toUpperCase() + namaAsal.slice(1);
+
+                        let peranan = 'Operator';
+                        if (namaAsal === 'lili' || namaAsal === 'ahmad') {
+                            peranan = 'Admin';
+                        } else {
+                            try {
+                                const snapRole = await rujukanPeranan.child(userFirebase.uid).once('value');
+                                if (snapRole.exists() && snapRole.val().role) {
+                                    peranan = snapRole.val().role;
+                                }
+                            } catch (e) { console.warn("Gagal baca role:", e); }
+                        }
+
+                        penggunaSemasa = {
+                            uid: userFirebase.uid,
+                            id: idPaparan,
+                            email: userFirebase.email,
+                            role: peranan
+                        };
+
+                        masukKeAplikasi();
+                        mulakanPendengarDataAwan();
+                    } else {
+                        penggunaSemasa = null;
+                        document.getElementById('app-screen').classList.add('hidden');
+                        document.getElementById('login-screen').classList.remove('hidden');
+                    }
+                });
+            } catch (ralatInit) {
+                console.error("Ralat Inisialisasi Firebase:", ralatInit);
+            }
+        }
+
+        // Pendengar Masa-Nyata (Real-time Listener) untuk Peta & Senarai User di Awan
+        function mulakanPendengarDataAwan() {
+            if (!modFirebaseAktif) return;
+
+            // 1. Dengar perubahan penanda peta secara real-time
+            rujukanPenanda.on('value', (snapshot) => {
+                const data = snapshot.val();
+                senaraiMarkerAwan = [];
+                if (data) {
+                    Object.keys(data).forEach(kunci => {
+                        senaraiMarkerAwan.push({
+                            firebaseKey: kunci,
+                            ...data[kunci]
+                        });
+                    });
+                }
+                if (map) lukisSemuaMarkerDariStorage();
+            });
+
+            // 2. Dengar senarai peranan pengguna (Jika Admin)
+            if (penggunaSemasa && penggunaSemasa.role === 'Admin') {
+                rujukanPeranan.on('value', (snapshot) => {
+                    senaraiUserAwan = snapshot.val() || {};
+                    muatJadualUser();
+                });
+            }
+        }
+
         // --- A. KAMUS TERJEMAHAN DWI-BAHASA ---
         const kamusBahasa = {
             ms: {
                 "login-title": "Sistem Peta Pintar",
-                "login-subtitle": "Projek Integrasi Sistem Lili & Ahmad (Versi Lokal)",
+                "login-subtitle": "Projek Integrasi Sistem Lili & Ahmad (v8.0 Cloud-Ready)",
                 "lbl-user-id": "ID Pengguna",
                 "lbl-password": "Kata Laluan",
                 "btn-login": "Log Masuk Sistem",
                 "lbl-default-info": "💡 Maklumat Akses Lalai:",
-                "sidebar-sub": "Versi 7.0: Lengkap",
                 "lbl-logged-in-as": "Log masuk sebagai:",
                 "tab-map-title": "Peta & Penanda",
                 "tab-settings-title": "Tetapan",
@@ -493,7 +617,7 @@
                 "user-add-title": "Daftar Pengguna Baharu",
                 "user-add-desc": "Tambah pengguna dan tetapkan peranan (Role) mereka.",
                 "lbl-new-user-id": "ID Pengguna Baharu",
-                "lbl-set-pass": "Set Kata Laluan",
+                "lbl-set-pass": "Set Kata Laluan (Min 6 Aksara)",
                 "lbl-select-role": "Pilih Peranan (Role)",
                 "btn-register-user": "Daftar Pengguna",
                 "user-list-title": "Senarai Pengguna Sistem",
@@ -510,12 +634,11 @@
             },
             en: {
                 "login-title": "Smart Map System",
-                "login-subtitle": "Lili & Ahmad System Integration Project (Local Version)",
+                "login-subtitle": "Lili & Ahmad System Integration Project (v8.0 Cloud-Ready)",
                 "lbl-user-id": "User ID",
                 "lbl-password": "Password",
                 "btn-login": "System Login",
                 "lbl-default-info": "💡 Default Credentials Info:",
-                "sidebar-sub": "Version 7.0: Complete",
                 "lbl-logged-in-as": "Logged in as:",
                 "tab-map-title": "Map & Markers",
                 "tab-settings-title": "Settings",
@@ -553,7 +676,7 @@
                 "user-add-title": "Register New User",
                 "user-add-desc": "Add a new user and assign their roles.",
                 "lbl-new-user-id": "New User ID",
-                "lbl-set-pass": "Set Password",
+                "lbl-set-pass": "Set Password (Min 6 Chars)",
                 "lbl-select-role": "Select Role",
                 "btn-register-user": "Register User",
                 "user-list-title": "System Users List",
@@ -596,7 +719,6 @@
 
             document.getElementById('input-carian').placeholder = kamusBahasa[kod]['placeholder-search'];
             
-            // Kemas kini label butang live tracking mengikut status semasa
             const lblLive = document.getElementById('label-live-gps');
             if (lblLive) {
                 lblLive.textContent = sedangMenjejak ? kamusBahasa[kod]['btn-live-stop'] : kamusBahasa[kod]['btn-live-start'];
@@ -606,7 +728,7 @@
             if (map) lukisSemuaMarkerDariStorage();
         }
 
-        // --- B. PENGURUSAN LOCALSTORAGE ---
+        // --- B. PENGURUSAN STORAN (HIBRID: CLOUD & LOKAL) ---
         const KUNCI_STORAGE_USER = 'geosistem_users_db';
         const KUNCI_STORAGE_MARKER = 'geosistem_markers_db';
         const KUNCI_STORAGE_TILE = 'geosistem_tile_config';
@@ -637,6 +759,9 @@
         }
 
         function dapatkanSenaraiMarker() {
+            if (modFirebaseAktif) {
+                return senaraiMarkerAwan;
+            }
             const data = localStorage.getItem(KUNCI_STORAGE_MARKER);
             return data ? JSON.parse(data) : [];
         }
@@ -653,13 +778,33 @@
 
         let penggunaSemasa = null;
 
-        // --- C. SISTEM LOG MASUK & LOG KELUAR ---
+        // --- C. SISTEM LOG MASUK & LOG KELUAR (HIBRID) ---
         function prosesLogin(event) {
             event.preventDefault();
             const inputId = document.getElementById('login-id').value.trim();
             const inputPass = document.getElementById('login-pass').value;
             const kotakRalat = document.getElementById('login-ralat');
 
+            // 1. JIKA MOD FIREBASE AKTIF: Guna Firebase Authentication
+            if (modFirebaseAktif) {
+                const emelMaya = formatKeEmel(inputId);
+                auth.signInWithEmailAndPassword(emelMaya, inputPass)
+                    .then(() => {
+                        kotakRalat.classList.add('hidden');
+                        document.getElementById('login-id').value = '';
+                        document.getElementById('login-pass').value = '';
+                    })
+                    .catch((ralat) => {
+                        console.error("Ralat Firebase Auth:", ralat.code);
+                        kotakRalat.textContent = bahasaSemasa === 'ms' 
+                            ? "❌ ID Pengguna atau Kata Laluan tidak sah di Firebase Auth!" 
+                            : "❌ Invalid User ID or Password in Firebase Auth!";
+                        kotakRalat.classList.remove('hidden');
+                    });
+                return;
+            }
+
+            // 2. JIKA MOD LOKAL: Guna localStorage
             const senaraiUser = dapatkanSenaraiUser();
             const userDijumpai = senaraiUser.find(
                 u => u.id.toLowerCase() === inputId.toLowerCase() && u.pass === inputPass
@@ -702,6 +847,12 @@
 
         function prosesLogout() {
             if (sedangMenjejak) hentiLiveTracking();
+            if (modFirebaseAktif && auth) {
+                if (rujukanPenanda) rujukanPenanda.off();
+                if (rujukanPeranan) rujukanPeranan.off();
+                auth.signOut();
+                return;
+            }
             penggunaSemasa = null;
             document.getElementById('app-screen').classList.add('hidden');
             document.getElementById('login-screen').classList.remove('hidden');
@@ -737,16 +888,33 @@
             const passSahkan = document.getElementById('pass-sahkan').value;
             const notifikasi = document.getElementById('notifikasi-tetapan');
 
-            if (passLama !== penggunaSemasa.pass) {
-                paparNotifikasi(notifikasi, bahasaSemasa === 'ms' ? "❌ Kata laluan semasa tidak tepat!" : "❌ Incorrect current password!", false);
-                return;
-            }
-            if (passBaru.length < 4) {
-                paparNotifikasi(notifikasi, bahasaSemasa === 'ms' ? "⚠️ Kata laluan minimum 4 aksara." : "⚠️ Minimum 4 characters required.", false);
+            if (passBaru.length < 6) {
+                paparNotifikasi(notifikasi, bahasaSemasa === 'ms' ? "⚠️ Kata laluan minimum 6 aksara." : "⚠️ Minimum 6 characters required.", false);
                 return;
             }
             if (passBaru !== passSahkan) {
                 paparNotifikasi(notifikasi, bahasaSemasa === 'ms' ? "❌ Pengesahan kata laluan tidak sepadan!" : "❌ Passwords do not match!", false);
+                return;
+            }
+
+            // 1. JIKA MOD FIREBASE AKTIF
+            if (modFirebaseAktif && auth.currentUser) {
+                auth.currentUser.updatePassword(passBaru)
+                    .then(() => {
+                        document.getElementById('pass-lama').value = '';
+                        document.getElementById('pass-baru').value = '';
+                        document.getElementById('pass-sahkan').value = '';
+                        paparNotifikasi(notifikasi, "✅ Kata laluan awan berjaya dikemas kini!", true);
+                    })
+                    .catch(() => {
+                        paparNotifikasi(notifikasi, "⚠️ Sila log keluar dan log masuk semula sebelum menukar kata laluan.", false);
+                    });
+                return;
+            }
+
+            // 2. JIKA MOD LOKAL
+            if (passLama !== penggunaSemasa.pass) {
+                paparNotifikasi(notifikasi, bahasaSemasa === 'ms' ? "❌ Kata laluan semasa tidak tepat!" : "❌ Incorrect current password!", false);
                 return;
             }
 
@@ -763,7 +931,6 @@
             }
         }
 
-        // Pratetap Pembekal Peta (Termasuk Mapbox!)
         const presetsPeta = {
             "osm": {
                 nama: "OpenStreetMap Standard",
@@ -880,12 +1047,7 @@
                 map.removeLayer(gayaJalanan);
             }
 
-            // Konfigurasi pintar: Mapbox menggunakan jubin 512px dengan zoomOffset -1
-            const opsiTile = {
-                maxZoom: 19,
-                attribution: config.attribution
-            };
-
+            const opsiTile = { maxZoom: 19, attribution: config.attribution };
             if (urlAkhir.includes('api.mapbox.com/styles/v1')) {
                 opsiTile.tileSize = 512;
                 opsiTile.zoomOffset = -1;
@@ -894,19 +1056,49 @@
             gayaJalanan = L.tileLayer(urlAkhir, opsiTile);
             gayaJalanan.addTo(map);
 
-            // Kemas kini lencana nama pembekal di atas peta
             const badge = document.getElementById('badge-pembekal-aktif');
             if (badge) badge.textContent = `API: ${config.nama}`;
         }
 
-        // --- E. PENGURUSAN PENGGUNA (ADMIN) ---
-        function daftarUserBaharu(event) {
+        // --- E. PENGURUSAN PENGGUNA (ADMIN - HIBRID CLOUD & LOKAL) ---
+        async function daftarUserBaharu(event) {
             event.preventDefault();
             const idBaharu = document.getElementById('new-user-id').value.trim();
             const passBaharu = document.getElementById('new-user-pass').value;
             const roleBaharu = document.getElementById('new-user-role').value;
             const notifikasi = document.getElementById('notifikasi-user');
 
+            if (passBaharu.length < 6) {
+                paparNotifikasi(notifikasi, "⚠️ Kata laluan mesti sekurang-kurangnya 6 aksara.", false);
+                return;
+            }
+
+            // 1. JIKA MOD FIREBASE AKTIF: Guna Secondary App supaya sesi Admin tidak terkeluar!
+            if (modFirebaseAktif) {
+                const secondaryApp = firebase.initializeApp(firebaseConfig, "SecondaryApp_" + Date.now());
+                try {
+                    const emelBaharu = formatKeEmel(idBaharu);
+                    const kredensial = await secondaryApp.auth().createUserWithEmailAndPassword(emelBaharu, passBaharu);
+                    
+                    await rujukanPeranan.child(kredensial.user.uid).set({
+                        id: idBaharu,
+                        email: emelBaharu,
+                        role: roleBaharu
+                    });
+
+                    await secondaryApp.auth().signOut();
+                    document.getElementById('new-user-id').value = '';
+                    document.getElementById('new-user-pass').value = '';
+                    paparNotifikasi(notifikasi, `✅ Akaun awan '${idBaharu}' (${roleBaharu}) berjaya dicipta!`, true);
+                } catch (ralat) {
+                    paparNotifikasi(notifikasi, "❌ Ralat Firebase: " + ralat.message, false);
+                } finally {
+                    secondaryApp.delete();
+                }
+                return;
+            }
+
+            // 2. JIKA MOD LOKAL
             const senaraiUser = dapatkanSenaraiUser();
             if (senaraiUser.some(u => u.id.toLowerCase() === idBaharu.toLowerCase())) {
                 paparNotifikasi(notifikasi, `❌ ID '${idBaharu}' sudah wujud!`, false);
@@ -924,9 +1116,49 @@
 
         function muatJadualUser() {
             const tbody = document.getElementById('jadual-senarai-user');
-            const senaraiUser = dapatkanSenaraiUser();
             tbody.innerHTML = '';
 
+            // 1. JIKA MOD FIREBASE AKTIF
+            if (modFirebaseAktif) {
+                // Paparkan Admin Lalai dahulu
+                ['Lili', 'Ahmad'].forEach(namaAdmin => {
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-slate-700/30 transition";
+                    tr.innerHTML = `
+                        <td class="py-3 px-4 font-semibold text-white">${namaAdmin}</td>
+                        <td class="py-3 px-4"><span class="px-2.5 py-1 bg-emerald-500/20 text-emerald-300 text-xs font-bold rounded-full border border-emerald-500/30">Admin Utama</span></td>
+                        <td class="py-3 px-4 text-xs text-slate-400">Cloud Admin</td>
+                        <td class="py-3 px-4 text-right"><span class="text-xs text-slate-500 italic">Kekal</span></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                // Paparkan pengguna lain daripada nod geosistem_roles
+                Object.keys(senaraiUserAwan).forEach(uid => {
+                    const u = senaraiUserAwan[uid];
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-slate-700/30 transition";
+                    tr.innerHTML = `
+                        <td class="py-3 px-4 font-semibold text-white">${u.id}</td>
+                        <td class="py-3 px-4">
+                            <select onchange="kemaskiniRoleUserAwan('${uid}', this.value)" class="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1">
+                                <option value="Admin" ${u.role === 'Admin' ? 'selected' : ''}>Admin</option>
+                                <option value="Technician" ${u.role === 'Technician' ? 'selected' : ''}>Technician</option>
+                                <option value="Operator" ${u.role === 'Operator' ? 'selected' : ''}>Operator</option>
+                            </select>
+                        </td>
+                        <td class="py-3 px-4 text-xs text-emerald-400">☁️ Cloud Auth</td>
+                        <td class="py-3 px-4 text-right">
+                            <button onclick="padamRoleUserAwan('${uid}', '${u.id}')" class="text-xs text-red-400 hover:text-red-300 font-semibold px-2 py-1 rounded bg-red-500/10 border border-red-500/20">Padam Rekod</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                return;
+            }
+
+            // 2. JIKA MOD LOKAL
+            const senaraiUser = dapatkanSenaraiUser();
             senaraiUser.forEach((u, index) => {
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-slate-700/30 transition";
@@ -953,6 +1185,16 @@
             });
         }
 
+        function kemaskiniRoleUserAwan(uid, roleBaru) {
+            if (rujukanPeranan) rujukanPeranan.child(uid).update({ role: roleBaru });
+        }
+
+        function padamRoleUserAwan(uid, namaId) {
+            if (confirm(`Padam rekod peranan '${namaId}' daripada pangkalan data?`)) {
+                if (rujukanPeranan) rujukanPeranan.child(uid).remove();
+            }
+        }
+
         function kemaskiniRoleUser(idx, roleBaru) {
             const senarai = dapatkanSenaraiUser();
             senarai[idx].role = roleBaru;
@@ -969,6 +1211,10 @@
         }
 
         function resetKeDefault() {
+            if (modFirebaseAktif) {
+                alert("Dalam Mod Cloud, sila uruskan pengguna melalui Firebase Console.");
+                return;
+            }
             if (confirm("Reset semula semua pengguna kepada Lili & Ahmad sahaja?")) {
                 localStorage.setItem(KUNCI_STORAGE_USER, JSON.stringify(penggunaLalai));
                 muatJadualUser();
@@ -1017,7 +1263,6 @@
             lukisSemuaMarkerDariStorage();
         }
 
-        // 1. Fungsi GPS Satu Kali
         function jejakiLokasiSaya() {
             const statusText = document.getElementById('status-carian');
             if (!navigator.geolocation) {
@@ -1042,13 +1287,9 @@
             );
         }
 
-        // 2. Fungsi Live Tracking Berterusan
         function togolLiveTracking() {
-            if (sedangMenjejak) {
-                hentiLiveTracking();
-            } else {
-                mulaLiveTracking();
-            }
+            if (sedangMenjejak) hentiLiveTracking();
+            else mulaLiveTracking();
         }
 
         function mulaLiveTracking() {
@@ -1086,7 +1327,6 @@
             document.getElementById('dot-live').className = "w-2 h-2 rounded-full bg-slate-400";
         }
 
-        // Helper melukis/mengemas kini objek GPS di atas peta
         function kemasKiniMarkerGPSDiPeta(lat, lon, ketepatan, fokusFly) {
             if (!penandaGPS) {
                 const ikonGPSKhas = L.divIcon({
@@ -1108,11 +1348,8 @@
             penandaGPS.bindPopup(`<b>Kedudukan GPS Anda</b><br>Ralat: ±${ketepatan.toFixed(1)}m`).openPopup();
             document.getElementById('btn-padam-gps').classList.remove('hidden');
 
-            if (fokusFly) {
-                map.flyTo([lat, lon], 16, { animate: true, duration: 1.5 });
-            } else {
-                map.panTo([lat, lon], { animate: true });
-            }
+            if (fokusFly) map.flyTo([lat, lon], 16, { animate: true, duration: 1.5 });
+            else map.panTo([lat, lon], { animate: true });
         }
 
         function padamMarkerGPS() {
@@ -1127,7 +1364,7 @@
             setTimeout(() => statusText.classList.add('hidden'), 3000);
         }
 
-        // --- G. PENANDA LOKASI TERSIMPAN (MARKERS) ---
+        // --- G. PENANDA LOKASI TERSIMPAN (HIBRID CLOUD & LOKAL) ---
         function bukaBorangSimpanMarker(lat, lng) {
             const popupTitle = bahasaSemasa === 'ms' ? "📍 Simpan Penanda Lokasi" : "📍 Save Map Marker";
             const phNama = bahasaSemasa === 'ms' ? "Nama Lokasi / Aset" : "Location / Asset Name";
@@ -1158,22 +1395,34 @@
             const catatan = document.getElementById('popup-catatan').value.trim();
             if (!nama) { alert("Sila masukkan nama lokasi!"); return; }
 
-            const senaraiMarker = dapatkanSenaraiMarker();
-            senaraiMarker.push({
+            const objekMarker = {
                 id: 'm_' + Date.now(),
                 nama: nama,
                 catatan: catatan || 'Tiada catatan',
                 lat: lat,
                 lng: lng,
-                diciptaOleh: penggunaSemasa ? penggunaSemasa.id : 'Admin'
-            });
+                diciptaOleh: penggunaSemasa ? penggunaSemasa.id : 'Admin',
+                uid: (penggunaSemasa && penggunaSemasa.uid) ? penggunaSemasa.uid : 'local_user'
+            };
 
+            // 1. JIKA MOD FIREBASE AKTIF
+            if (modFirebaseAktif && rujukanPenanda) {
+                rujukanPenanda.push(objekMarker)
+                    .then(() => map.closePopup())
+                    .catch(err => alert("❌ Gagal simpan ke awan: " + err.message));
+                return;
+            }
+
+            // 2. JIKA MOD LOKAL
+            const senaraiMarker = dapatkanSenaraiMarker();
+            senaraiMarker.push(objekMarker);
             simpanSenaraiMarker(senaraiMarker);
             lukisSemuaMarkerDariStorage();
             map.closePopup();
         };
 
         function lukisSemuaMarkerDariStorage() {
+            if (!map) return;
             kumpulanMarkerMap.forEach(m => map.removeLayer(m));
             kumpulanMarkerMap = [];
 
@@ -1232,19 +1481,38 @@
         };
 
         window.padamSatuMarker = function(id) {
-            if (confirm("Padam penanda ini?")) {
-                simpanSenaraiMarker(dapatkanSenaraiMarker().filter(m => m.id !== id));
-                lukisSemuaMarkerDariStorage();
-                map.closePopup();
+            if (!confirm("Padam penanda ini?")) return;
+
+            // 1. JIKA MOD FIREBASE AKTIF
+            if (modFirebaseAktif && rujukanPenanda) {
+                const sasaran = senaraiMarkerAwan.find(m => m.id === id);
+                if (sasaran && sasaran.firebaseKey) {
+                    rujukanPenanda.child(sasaran.firebaseKey).remove()
+                        .then(() => map.closePopup())
+                        .catch(() => alert("❌ Akses Ditolak: Anda hanya boleh memadam penanda milik anda sendiri!"));
+                }
+                return;
             }
+
+            // 2. JIKA MOD LOKAL
+            simpanSenaraiMarker(dapatkanSenaraiMarker().filter(m => m.id !== id));
+            lukisSemuaMarkerDariStorage();
+            map.closePopup();
         };
 
         function padamSemuaMarker() {
-            if (dapatkanSenaraiMarker().length === 0) return;
-            if (confirm("Padam SEMUA penanda lokasi?")) {
-                localStorage.removeItem(KUNCI_STORAGE_MARKER);
-                lukisSemuaMarkerDariStorage();
+            const senarai = dapatkanSenaraiMarker();
+            if (senarai.length === 0) return;
+            if (!confirm("Padam SEMUA penanda lokasi?")) return;
+
+            if (modFirebaseAktif && rujukanPenanda) {
+                rujukanPenanda.remove()
+                    .catch(() => alert("❌ Hanya Admin dibenarkan memadam semua penanda awan!"));
+                return;
             }
+
+            localStorage.removeItem(KUNCI_STORAGE_MARKER);
+            lukisSemuaMarkerDariStorage();
         }
 
         // --- H. GAYA PETA & CARIAN GEOCODING ---
@@ -1358,26 +1626,35 @@
                         alert("Format GeoJSON tidak sah!"); return;
                     }
 
-                    const senarai = dapatkanSenaraiMarker();
+                    const senaraiLokal = dapatkanSenaraiMarker();
                     let berjaya = 0;
 
                     geojson.features.forEach(f => {
                         if (f.geometry && f.geometry.type === "Point" && Array.isArray(f.geometry.coordinates)) {
-                            senarai.push({
+                            const itemBaru = {
                                 id: 'm_imp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
                                 nama: (f.properties && f.properties.nama) || "Penanda Import",
                                 catatan: (f.properties && f.properties.catatan) || "Diimport",
                                 lat: parseFloat(f.geometry.coordinates[1]),
                                 lng: parseFloat(f.geometry.coordinates[0]),
-                                diciptaOleh: (f.properties && f.properties.diciptaOleh) || (penggunaSemasa ? penggunaSemasa.id : "Sistem")
-                            });
+                                diciptaOleh: (f.properties && f.properties.diciptaOleh) || (penggunaSemasa ? penggunaSemasa.id : "Admin"),
+                                uid: (penggunaSemasa && penggunaSemasa.uid) ? penggunaSemasa.uid : "local_user"
+                            };
+
+                            if (modFirebaseAktif && rujukanPenanda) {
+                                rujukanPenanda.push(itemBaru);
+                            } else {
+                                senaraiLokal.push(itemBaru);
+                            }
                             berjaya++;
                         }
                     });
 
                     if (berjaya > 0) {
-                        simpanSenaraiMarker(senarai);
-                        lukisSemuaMarkerDariStorage();
+                        if (!modFirebaseAktif) {
+                            simpanSenaraiMarker(senaraiLokal);
+                            lukisSemuaMarkerDariStorage();
+                        }
                         alert(`🎉 Berjaya mengimport ${berjaya} penanda baharu!`);
                     }
                 } catch (err) {
