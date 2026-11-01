@@ -469,7 +469,9 @@
         };
 
         // Semak sama ada pengguna sudah memasukkan kunci Firebase sebenar
-        const modFirebaseAktif = firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith("AIzaSyALjSmK7kQNAtv5RH0wWdXRBBM_3aXkjVk");
+        //const modFirebaseAktif = firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith("GANTIKAN_");
+        // Memaksa Firebase sentiasa aktif
+        const modFirebaseAktif = true;
 
         let auth = null;
         let db = null;
